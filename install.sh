@@ -530,14 +530,14 @@ EOF
 # Create the MiniMax wrapper
 create_claude_minimax_wrapper() {
     local wrapper_path="$USER_BIN_DIR/ccm"
-    
+
     cat > "$wrapper_path" << EOF
 #!/bin/bash
 # CCM - Claude Code with MiniMax provider
 
 # Set MiniMax environment variables
 export ANTHROPIC_BASE_URL="https://api.minimax.io/anthropic"
-export ANTHROPIC_AUTH_TOKEN="\$MINIMAX_API_KEY"
+export ANTHROPIC_AUTH_TOKEN="$MINIMAX_API_KEY"
 export ANTHROPIC_MODEL="MiniMax-M2"
 export ANTHROPIC_SMALL_FAST_MODEL="MiniMax-M2"
 export ANTHROPIC_DEFAULT_SONNET_MODEL="MiniMax-M2"
@@ -557,7 +557,7 @@ cat > "\$CLAUDE_HOME/settings.json" << SETTINGS
 {
   "env": {
     "ANTHROPIC_BASE_URL": "https://api.minimax.io/anthropic",
-    "ANTHROPIC_AUTH_TOKEN": "\$MINIMAX_API_KEY",
+    "ANTHROPIC_AUTH_TOKEN": "$MINIMAX_API_KEY",
     "API_TIMEOUT_MS": "3000000",
     "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": 1,
     "ANTHROPIC_MODEL": "MiniMax-M2",
@@ -592,14 +592,14 @@ EOF
 # Create the DeepSeek wrapper
 create_claude_deepseek_wrapper() {
     local wrapper_path="$USER_BIN_DIR/ccd"
-    
+
     cat > "$wrapper_path" << EOF
 #!/bin/bash
 # CCD - Claude Code with DeepSeek provider
 
 # Set DeepSeek environment variables
 export ANTHROPIC_BASE_URL="https://api.deepseek.com/anthropic"
-export ANTHROPIC_AUTH_TOKEN="\$DEEPSEEK_API_KEY"
+export ANTHROPIC_AUTH_TOKEN="$DEEPSEEK_API_KEY"
 export ANTHROPIC_MODEL="deepseek-chat"
 export ANTHROPIC_SMALL_FAST_MODEL="deepseek-chat"
 export API_TIMEOUT_MS="600000"
@@ -616,7 +616,7 @@ cat > "\$CLAUDE_HOME/settings.json" << SETTINGS
 {
   "env": {
     "ANTHROPIC_BASE_URL": "https://api.deepseek.com/anthropic",
-    "ANTHROPIC_AUTH_TOKEN": "\$DEEPSEEK_API_KEY",
+    "ANTHROPIC_AUTH_TOKEN": "$DEEPSEEK_API_KEY",
     "API_TIMEOUT_MS": "600000",
     "ANTHROPIC_MODEL": "deepseek-chat",
     "ANTHROPIC_SMALL_FAST_MODEL": "deepseek-chat",
@@ -721,7 +721,7 @@ check_claude_installation() {
 
 # Main installation
 main() {
-    echo "🔧 Claude-GLM Server-Friendly Installer"
+    echo "🔧 Multi-Provider Claude Installer"
     echo "========================================"
     echo ""
     echo "This installer:"
