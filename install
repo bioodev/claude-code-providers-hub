@@ -13,10 +13,10 @@ if [[ "$OSTYPE" == "msys"* ]] || [[ "$OSTYPE" == "cygwin"* ]] || [[ "$OSTYPE" ==
     echo ""
     echo "For the best experience on Windows, please use PowerShell instead:"
     echo ""
-    echo "  iwr -useb https://raw.githubusercontent.com/JoeInnsp23/claude-glm-wrapper/powershell/install.ps1 | iex"
+    echo "  iwr -useb https://raw.githubusercontent.com/bioodev/claude-code-providers-hub/powershell/install.ps1 | iex"
     echo ""
     echo "Or download and run manually:"
-    echo "  1. Download: https://raw.githubusercontent.com/JoeInnsp23/claude-glm-wrapper/powershell/install.ps1"
+    echo "  1. Download: https://raw.githubusercontent.com/bioodev/claude-code-providers-hub/powershell/install.ps1"
     echo "  2. Run: .\\install.ps1"
     echo ""
     read -p "Continue with bash installation anyway? (y/n): " continue_choice

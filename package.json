@@ -1,7 +1,7 @@
 {
-  "name": "claude-ai-providers-installer",
+  "name": "claude-code-providers-hub",
   "version": "3.0.0",
-  "description": "Cross-platform installer for Claude Code with multiple AI providers (GLM, MiniMax, DeepSeek). Run with: npx claude-ai-providers-installer",
+  "description": "Providers hub for Claude Code - Install and switch between GLM, MiniMax, DeepSeek, and Anthropic models seamlessly. Run with: npx github:bioodev/claude-code-providers-hub",
   "keywords": [
     "claude",
     "claude-code",
@@ -13,19 +13,27 @@
     "llm",
     "installer",
     "multi-provider",
-    "ai-providers"
+    "ai-providers",
+    "providers-hub"
   ],
-  "homepage": "https://github.com/JoeInnsp23/claude-glm-wrapper#readme",
+  "homepage": "https://github.com/bioodev/claude-code-providers-hub#readme",
   "bugs": {
-    "url": "https://github.com/JoeInnsp23/claude-glm-wrapper/issues"
+    "url": "https://github.com/bioodev/claude-code-providers-hub/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/JoeInnsp23/claude-glm-wrapper.git"
+    "url": "git+https://github.com/bioodev/claude-code-providers-hub.git"
   },
   "license": "MIT",
-  "author": "Joseph Stephenson-Mouzo",
+  "author": "bioodev",
+  "contributors": [
+    {
+      "name": "Joseph Stephenson-Mouzo",
+      "url": "https://github.com/JoeInnsp23"
+    }
+  ],
   "bin": {
+    "claude-code-providers-hub": "bin/cli.js",
     "claude-ai-providers-installer": "bin/cli.js",
     "claude-glm-installer": "bin/cli.js"
   },

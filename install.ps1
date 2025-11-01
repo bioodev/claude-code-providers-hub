@@ -3,10 +3,10 @@
 #
 # Usage with parameters when downloading:
 #   Test error reporting:
-#     $env:CLAUDE_GLM_TEST_ERROR=1; iwr -useb https://raw.githubusercontent.com/JoeInnsp23/claude-glm-wrapper/main/install.ps1 | iex; $env:CLAUDE_GLM_TEST_ERROR=$null
+#     $env:CLAUDE_GLM_TEST_ERROR=1; iwr -useb https://raw.githubusercontent.com/bioodev/claude-code-providers-hub/main/install.ps1 | iex; $env:CLAUDE_GLM_TEST_ERROR=$null
 #
 #   Enable debug mode:
-#     $env:CLAUDE_GLM_DEBUG=1; iwr -useb https://raw.githubusercontent.com/JoeInnsp23/claude-glm-wrapper/main/install.ps1 | iex; $env:CLAUDE_GLM_DEBUG=$null
+#     $env:CLAUDE_GLM_DEBUG=1; iwr -useb https://raw.githubusercontent.com/bioodev/claude-code-providers-hub/main/install.ps1 | iex; $env:CLAUDE_GLM_DEBUG=$null
 #
 # Usage when running locally:
 #   .\install.ps1 -TestError
@@ -528,7 +528,7 @@ function Report-Error {
 
     if ($reportChoice -ne "y" -and $reportChoice -ne "Y") {
         Write-Host "Error not reported. You can get help at:" -ForegroundColor Yellow
-        Write-Host "  https://github.com/JoeInnsp23/claude-glm-wrapper/issues" -ForegroundColor Cyan
+        Write-Host "  https://github.com/bioodev/claude-code-providers-hub/issues" -ForegroundColor Cyan
         Write-Host ""
         Write-Host "Press Enter to close..." -ForegroundColor Gray
         $null = Read-Host
@@ -592,7 +592,7 @@ function Report-Error {
     $encodedBody = [uri]::EscapeDataString($issueBody)
     $encodedTitle = [uri]::EscapeDataString("Installation Error: Windows PowerShell")
 
-    $issueUrl = "https://github.com/JoeInnsp23/claude-glm-wrapper/issues/new?title=$encodedTitle`&body=$encodedBody`&labels=bug,windows,installation"
+    $issueUrl = "https://github.com/bioodev/claude-code-providers-hub/issues/new?title=$encodedTitle`&body=$encodedBody`&labels=bug,windows,installation"
 
     Write-Host "INFO: Error details have been prepared for reporting."
     Write-Host ""
@@ -643,7 +643,7 @@ function Report-Error {
         $null = Read-Host
 
         # Create a shorter URL with just the title
-        $shortUrl = "https://github.com/JoeInnsp23/claude-glm-wrapper/issues/new?title=$encodedTitle`&labels=bug,windows,installation"
+        $shortUrl = "https://github.com/bioodev/claude-code-providers-hub/issues/new?title=$encodedTitle`&labels=bug,windows,installation"
         Write-Host "Shortened URL (add error details manually):" -ForegroundColor Yellow
         Write-Host $shortUrl -ForegroundColor Cyan
     }
@@ -880,7 +880,7 @@ if ($TestError) {
     Write-Host "OK: Test complete. If a browser window opened, error reporting is working!" -ForegroundColor Green
     Write-Host ""
     Write-Host "To run normal installation, use:" -ForegroundColor Gray
-    Write-Host "   iwr -useb https://raw.githubusercontent.com/JoeInnsp23/claude-glm-wrapper/main/install.ps1 | iex" -ForegroundColor Cyan
+    Write-Host "   iwr -useb https://raw.githubusercontent.com/bioodev/claude-code-providers-hub/main/install.ps1 | iex" -ForegroundColor Cyan
     Write-Host ""
     Write-Host "Press Enter to finish (window will remain open)..." -ForegroundColor Gray
     $null = Read-Host

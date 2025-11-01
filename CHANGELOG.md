@@ -71,8 +71,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Subexpression parsing errors in piped contexts
 - Terminal/PowerShell window persistence after errors
 
-[Unreleased]: https://github.com/JoeInnsp23/claude-glm-wrapper/compare/v1.0.3...HEAD
-[1.0.3]: https://github.com/JoeInnsp23/claude-glm-wrapper/compare/v1.0.2...v1.0.3
-[1.0.2]: https://github.com/JoeInnsp23/claude-glm-wrapper/compare/v1.0.1...v1.0.2
-[1.0.1]: https://github.com/JoeInnsp23/claude-glm-wrapper/compare/v1.0.0...v1.0.1
-[1.0.0]: https://github.com/JoeInnsp23/claude-glm-wrapper/releases/tag/v1.0.0
+[Unreleased]: https://github.com/bioodev/claude-code-providers-hub/compare/v1.0.3...HEAD
+[1.0.3]: https://github.com/bioodev/claude-code-providers-hub/compare/v1.0.2...v1.0.3
+[1.0.2]: https://github.com/bioodev/claude-code-providers-hub/compare/v1.0.1...v1.0.2
+[1.0.1]: https://github.com/bioodev/claude-code-providers-hub/compare/v1.0.0...v1.0.1
+[1.0.0]: https://github.com/bioodev/claude-code-providers-hub/releases/tag/v1.0.0

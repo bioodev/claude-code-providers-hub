@@ -4,11 +4,11 @@
 #
 # Usage:
 #   Test error reporting:
-#     CLAUDE_GLM_TEST_ERROR=1 bash <(curl -fsSL https://raw.githubusercontent.com/JoeInnsp23/claude-glm-wrapper/main/install.sh)
+#     CLAUDE_GLM_TEST_ERROR=1 bash <(curl -fsSL https://raw.githubusercontent.com/bioodev/claude-code-providers-hub/main/install.sh)
 #     OR: ./install.sh --test-error
 #
 #   Enable debug mode:
-#     CLAUDE_GLM_DEBUG=1 bash <(curl -fsSL https://raw.githubusercontent.com/JoeInnsp23/claude-glm-wrapper/main/install.sh)
+#     CLAUDE_GLM_DEBUG=1 bash <(curl -fsSL https://raw.githubusercontent.com/bioodev/claude-code-providers-hub/main/install.sh)
 #     OR: ./install.sh --debug
 
 # Parse command-line arguments
@@ -90,7 +90,7 @@ report_error() {
 
     if [ "$report_choice" != "y" ] && [ "$report_choice" != "Y" ]; then
         echo "Error not reported. You can get help at:"
-        echo "  https://github.com/JoeInnsp23/claude-glm-wrapper/issues"
+        echo "  https://github.com/bioodev/claude-code-providers-hub/issues"
         echo ""
         echo "Press Enter to finish..."
         read
@@ -154,7 +154,7 @@ $sanitized_error
         encoded_title="Installation%20Error%3A%20Unix%2FLinux%2FmacOS"
     fi
 
-    local issue_url="https://github.com/JoeInnsp23/claude-glm-wrapper/issues/new?title=${encoded_title}&body=${encoded_body}&labels=bug,unix,installation"
+    local issue_url="https://github.com/bioodev/claude-code-providers-hub/issues/new?title=${encoded_title}&body=${encoded_body}&labels=bug,unix,installation"
 
     echo "📋 Error details have been prepared for reporting."
     echo ""
@@ -989,7 +989,7 @@ if [ "$TEST_ERROR" = true ]; then
     echo "✅ Test complete. If a browser window opened, error reporting is working!"
     echo ""
     echo "To run normal installation, use:"
-    echo "   curl -fsSL https://raw.githubusercontent.com/JoeInnsp23/claude-glm-wrapper/main/install.sh | bash"
+    echo "   curl -fsSL https://raw.githubusercontent.com/bioodev/claude-code-providers-hub/main/install.sh | bash"
     echo ""
     echo "Press Enter to finish (window will remain open)..."
     read

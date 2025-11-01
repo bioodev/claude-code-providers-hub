@@ -1,4 +1,6 @@
-# Claude AI Providers Installer
+# Claude Code Providers Hub
+
+> **Fork note**: This is an enhanced fork of the original claude-glm-wrapper with additional providers (GLM, MiniMax, DeepSeek) and improved multi-provider support.
 
 Use [Z.AI's GLM models](https://z.ai), [MiniMax models](https://api.minimax.io), and [DeepSeek models](https://api.deepseek.com) with [Claude Code](https://www.anthropic.com/claude-code) — **without losing your existing Claude setup!**
 
@@ -14,6 +16,14 @@ Switch freely between GLM-4.6, GLM-4.5, GLM-4.5-Air, MiniMax-M2, DeepSeek-chat, 
 **⏱️ Optimized timeouts**: DeepSeek configured with 10-minute timeout to prevent client timeouts
 
 ## Quick Start
+
+### Use with npx (Recommended)
+
+**One command from your fork:**
+
+```bash
+npx github:bioodev/claude-code-providers-hub
+```
 
 ### Universal Installation (All Platforms)
 
@@ -58,14 +68,14 @@ That's it! 🎉
 #### macOS / Linux
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/JoeInnsp23/claude-glm-wrapper/powershell/install.sh)
+bash <(curl -fsSL https://raw.githubusercontent.com/bioodev/claude-code-providers-hub/main/install.sh)
 source ~/.zshrc  # or ~/.bashrc
 ```
 
 #### Windows (PowerShell)
 
 ```powershell
-iwr -useb https://raw.githubusercontent.com/JoeInnsp23/claude-glm-wrapper/powershell/install.ps1 | iex
+iwr -useb https://raw.githubusercontent.com/bioodev/claude-code-providers-hub/main/install.ps1 | iex
 . $PROFILE
 ```
 
@@ -127,13 +137,13 @@ source ~/.zshrc  # or ~/.bashrc
 
 **One-Line Install:**
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/JoeInnsp23/claude-glm-wrapper/powershell/install.sh)
+bash <(curl -fsSL https://raw.githubusercontent.com/bioodev/claude-code-providers-hub/powershell/install.sh)
 source ~/.zshrc  # or ~/.bashrc
 ```
 
 **Clone and Install:**
 ```bash
-git clone https://github.com/JoeInnsp23/claude-glm-wrapper.git
+git clone https://github.com/bioodev/claude-code-providers-hub.git
 cd claude-glm-wrapper
 bash install.sh
 source ~/.zshrc
@@ -146,13 +156,13 @@ source ~/.zshrc
 
 **One-Line Install:**
 ```powershell
-iwr -useb https://raw.githubusercontent.com/JoeInnsp23/claude-glm-wrapper/powershell/install.ps1 | iex
+iwr -useb https://raw.githubusercontent.com/bioodev/claude-code-providers-hub/powershell/install.ps1 | iex
 . $PROFILE
 ```
 
 **Clone and Install:**
 ```powershell
-git clone https://github.com/JoeInnsp23/claude-glm-wrapper.git
+git clone https://github.com/bioodev/claude-code-providers-hub.git
 cd claude-glm-wrapper
 .\install.ps1
 . $PROFILE
@@ -526,7 +536,7 @@ Then reload: `. $PROFILE`
 
 Found a bug? Have an idea? Contributions are welcome!
 
-- 🐛 **Report issues**: [GitHub Issues](https://github.com/JoeInnsp23/claude-glm-wrapper/issues)
+- 🐛 **Report issues**: [GitHub Issues](https://github.com/bioodev/claude-code-providers-hub/issues)
 - 🔧 **Submit PRs**: Fork, improve, and open a pull request
 - 💡 **Share feedback**: Tell us how you're using this tool!
 
