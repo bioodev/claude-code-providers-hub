@@ -33,9 +33,7 @@
     }
   ],
   "bin": {
-    "claude-code-providers-hub": "bin/cli.js",
-    "claude-ai-providers-installer": "bin/cli.js",
-    "claude-glm-installer": "bin/cli.js"
+    "claude-code-providers-hub": "bin/cli.js"
   },
   "files": [
     "bin/",
