@@ -45,6 +45,10 @@ USER_BIN_DIR="$HOME/.local/bin"
 GLM_CONFIG_DIR="$HOME/.claude-glm"
 GLM_45_CONFIG_DIR="$HOME/.claude-glm-45"
 GLM_FAST_CONFIG_DIR="$HOME/.claude-glm-fast"
+MINIMAX_CONFIG_DIR="$HOME/.claude-minimax"
+DEEPSEEK_CONFIG_DIR="$HOME/.claude-deepseek"
+MINIMAX_API_KEY="YOUR_MINIMAX_API_KEY_HERE"
+DEEPSEEK_API_KEY="YOUR_DEEPSEEK_API_KEY_HERE"
 ZAI_API_KEY="YOUR_ZAI_API_KEY_HERE"
 
 # Report installation errors to GitHub
@@ -523,6 +527,124 @@ EOF
     echo "✅ Installed claude-anthropic at $wrapper_path"
 }
 
+# Create the MiniMax wrapper
+create_claude_minimax_wrapper() {
+    local wrapper_path="$USER_BIN_DIR/ccm"
+    
+    cat > "$wrapper_path" << EOF
+#!/bin/bash
+# CCM - Claude Code with MiniMax provider
+
+# Set MiniMax environment variables
+export ANTHROPIC_BASE_URL="https://api.minimax.io/anthropic"
+export ANTHROPIC_AUTH_TOKEN="\$MINIMAX_API_KEY"
+export ANTHROPIC_MODEL="MiniMax-M2"
+export ANTHROPIC_SMALL_FAST_MODEL="MiniMax-M2"
+export ANTHROPIC_DEFAULT_SONNET_MODEL="MiniMax-M2"
+export ANTHROPIC_DEFAULT_OPUS_MODEL="MiniMax-M2"
+export ANTHROPIC_DEFAULT_HAIKU_MODEL="MiniMax-M2"
+export API_TIMEOUT_MS="3000000"
+export CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC="1"
+
+# Use custom config directory to avoid conflicts
+export CLAUDE_HOME="\$HOME/.claude-minimax"
+
+# Create config directory if it doesn't exist
+mkdir -p "\$CLAUDE_HOME"
+
+# Create/update settings file with MiniMax configuration
+cat > "\$CLAUDE_HOME/settings.json" << SETTINGS
+{
+  "env": {
+    "ANTHROPIC_BASE_URL": "https://api.minimax.io/anthropic",
+    "ANTHROPIC_AUTH_TOKEN": "\$MINIMAX_API_KEY",
+    "API_TIMEOUT_MS": "3000000",
+    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": 1,
+    "ANTHROPIC_MODEL": "MiniMax-M2",
+    "ANTHROPIC_SMALL_FAST_MODEL": "MiniMax-M2",
+    "ANTHROPIC_DEFAULT_SONNET_MODEL": "MiniMax-M2",
+    "ANTHROPIC_DEFAULT_OPUS_MODEL": "MiniMax-M2",
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "MiniMax-M2"
+  }
+}
+SETTINGS
+
+# Launch Claude Code with custom config
+echo "🚀 Starting Claude Code with MiniMax (M2 Model)..."
+echo "📁 Config directory: \$CLAUDE_HOME"
+echo ""
+
+# Check if claude exists
+if ! command -v claude &> /dev/null; then
+    echo "❌ Error: 'claude' command not found!"
+    echo "Please ensure Claude Code is installed and in your PATH"
+    exit 1
+fi
+
+# Run the actual claude command
+claude "\$@"
+EOF
+    
+    chmod +x "$wrapper_path"
+    echo "✅ Installed ccm at $wrapper_path"
+}
+
+# Create the DeepSeek wrapper
+create_claude_deepseek_wrapper() {
+    local wrapper_path="$USER_BIN_DIR/ccd"
+    
+    cat > "$wrapper_path" << EOF
+#!/bin/bash
+# CCD - Claude Code with DeepSeek provider
+
+# Set DeepSeek environment variables
+export ANTHROPIC_BASE_URL="https://api.deepseek.com/anthropic"
+export ANTHROPIC_AUTH_TOKEN="\$DEEPSEEK_API_KEY"
+export ANTHROPIC_MODEL="deepseek-chat"
+export ANTHROPIC_SMALL_FAST_MODEL="deepseek-chat"
+export API_TIMEOUT_MS="600000"
+export CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC="1"
+
+# Use custom config directory to avoid conflicts
+export CLAUDE_HOME="\$HOME/.claude-deepseek"
+
+# Create config directory if it doesn't exist
+mkdir -p "\$CLAUDE_HOME"
+
+# Create/update settings file with DeepSeek configuration
+cat > "\$CLAUDE_HOME/settings.json" << SETTINGS
+{
+  "env": {
+    "ANTHROPIC_BASE_URL": "https://api.deepseek.com/anthropic",
+    "ANTHROPIC_AUTH_TOKEN": "\$DEEPSEEK_API_KEY",
+    "API_TIMEOUT_MS": "600000",
+    "ANTHROPIC_MODEL": "deepseek-chat",
+    "ANTHROPIC_SMALL_FAST_MODEL": "deepseek-chat",
+    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": 1
+  }
+}
+SETTINGS
+
+# Launch Claude Code with custom config
+echo "🚀 Starting Claude Code with DeepSeek (deepseek-chat)..."
+echo "📁 Config directory: \$CLAUDE_HOME"
+echo ""
+
+# Check if claude exists
+if ! command -v claude &> /dev/null; then
+    echo "❌ Error: 'claude' command not found!"
+    echo "Please ensure Claude Code is installed and in your PATH"
+    exit 1
+fi
+
+# Run the actual claude command
+claude "\$@"
+EOF
+    
+    chmod +x "$wrapper_path"
+    echo "✅ Installed ccd at $wrapper_path"
+}
+
 # Create shell aliases
 create_shell_aliases() {
     local rc_file=$(detect_shell_rc)
@@ -539,7 +661,9 @@ create_shell_aliases() {
         grep -v "alias cc=" | \
         grep -v "alias ccg=" | \
         grep -v "alias ccg45=" | \
-        grep -v "alias ccf=" > "$rc_file.tmp"
+        grep -v "alias ccf=" | \
+        grep -v "alias ccm=" | \
+        grep -v "alias ccd=" > "$rc_file.tmp"
         mv "$rc_file.tmp" "$rc_file"
     fi
     
@@ -552,6 +676,8 @@ alias cc 'claude'
 alias ccg 'claude-glm'
 alias ccg45 'claude-glm-4.5'
 alias ccf 'claude-glm-fast'
+alias ccm 'ccm'
+alias ccd 'ccd'
 EOF
     else
         cat >> "$rc_file" << 'EOF'
@@ -561,6 +687,8 @@ alias cc='claude'
 alias ccg='claude-glm'
 alias ccg45='claude-glm-4.5'
 alias ccf='claude-glm-fast'
+alias ccm='ccm'
+alias ccd='ccd'
 EOF
     fi
     
@@ -612,7 +740,7 @@ main() {
     cleanup_old_wrappers
 
     # Check if already installed
-    if [ -f "$USER_BIN_DIR/claude-glm" ] || [ -f "$USER_BIN_DIR/claude-glm-fast" ]; then
+    if [ -f "$USER_BIN_DIR/claude-glm" ] || [ -f "$USER_BIN_DIR/claude-glm-fast" ] || [ -f "$USER_BIN_DIR/ccm" ] || [ -f "$USER_BIN_DIR/ccd" ]; then
         echo ""
         echo "✅ Existing installation detected!"
         echo "1) Update API key only"
@@ -622,15 +750,37 @@ main() {
         
         case "$update_choice" in
             1)
-                read -p "Enter your Z.AI API key: " input_key
-                if [ -n "$input_key" ]; then
-                    ZAI_API_KEY="$input_key"
-                    create_claude_glm_wrapper
-                    create_claude_glm_45_wrapper
-                    create_claude_glm_fast_wrapper
-                    echo "✅ API key updated!"
-                    exit 0
+                echo "Choose provider to update:"
+                echo "1) Z.AI GLM (GLM-4.6, GLM-4.5, GLM-4.5-Air)"
+                echo "2) MiniMax (MiniMax-M2)"
+                echo "3) DeepSeek (deepseek-chat)"
+                read -p "Provider (1-3): " provider_choice
+                
+                if [ "$provider_choice" = "1" ]; then
+                    read -p "Enter your Z.AI API key: " input_key
+                    if [ -n "$input_key" ]; then
+                        ZAI_API_KEY="$input_key"
+                        create_claude_glm_wrapper
+                        create_claude_glm_45_wrapper
+                        create_claude_glm_fast_wrapper
+                        echo "✅ GLM API key updated!"
+                    fi
+                elif [ "$provider_choice" = "2" ]; then
+                    read -p "Enter your MiniMax API key: " input_key
+                    if [ -n "$input_key" ]; then
+                        MINIMAX_API_KEY="$input_key"
+                        create_claude_minimax_wrapper
+                        echo "✅ MiniMax API key updated!"
+                    fi
+                elif [ "$provider_choice" = "3" ]; then
+                    read -p "Enter your DeepSeek API key: " input_key
+                    if [ -n "$input_key" ]; then
+                        DEEPSEEK_API_KEY="$input_key"
+                        create_claude_deepseek_wrapper
+                        echo "✅ DeepSeek API key updated!"
+                    fi
                 fi
+                exit 0
                 ;;
             2)
                 echo "Reinstalling..."
@@ -641,25 +791,70 @@ main() {
         esac
     fi
     
-    # Get API key
+    # Get API keys
     echo ""
-    echo "Enter your Z.AI API key (from https://z.ai/manage-apikey/apikey-list)"
-    read -p "API Key: " input_key
+    echo "Choose which providers to install:"
+    echo "1) Z.AI GLM only (GLM-4.6, GLM-4.5, GLM-4.5-Air)"
+    echo "2) MiniMax only (MiniMax-M2)"
+    echo "3) DeepSeek only (deepseek-chat)"
+    echo "4) All three providers"
+    echo "5) Custom combination"
+    read -p "Choice (1-5): " provider_choice
     
-    if [ -n "$input_key" ]; then
-        ZAI_API_KEY="$input_key"
-        echo "✅ API key received (${#input_key} characters)"
-    else
-        echo "⚠️  No API key provided. Add it manually later to:"
-        echo "   $USER_BIN_DIR/claude-glm"
-        echo "   $USER_BIN_DIR/claude-glm-4.5"
-        echo "   $USER_BIN_DIR/claude-glm-fast"
+    if [ "$provider_choice" = "1" ] || [ "$provider_choice" = "4" ] || [ "$provider_choice" = "5" ]; then
+        echo ""
+        echo "Enter your Z.AI API key (from https://z.ai/manage-apikey/apikey-list)"
+        read -p "Z.AI API Key: " input_key
+        
+        if [ -n "$input_key" ]; then
+            ZAI_API_KEY="$input_key"
+            echo "✅ Z.AI API key received (${#input_key} characters)"
+        else
+            echo "⚠️  No Z.AI API key provided. Add it manually later."
+        fi
+    fi
+    
+    if [ "$provider_choice" = "2" ] || [ "$provider_choice" = "4" ] || [ "$provider_choice" = "5" ]; then
+        echo ""
+        echo "Enter your MiniMax API key (from https://api.minimax.io)"
+        read -p "MiniMax API Key: " input_key
+        
+        if [ -n "$input_key" ]; then
+            MINIMAX_API_KEY="$input_key"
+            echo "✅ MiniMax API key received (${#input_key} characters)"
+        else
+            echo "⚠️  No MiniMax API key provided. Add it manually later."
+        fi
+    fi
+    
+    if [ "$provider_choice" = "3" ] || [ "$provider_choice" = "4" ] || [ "$provider_choice" = "5" ]; then
+        echo ""
+        echo "Enter your DeepSeek API key (from https://api.deepseek.com)"
+        read -p "DeepSeek API Key: " input_key
+        
+        if [ -n "$input_key" ]; then
+            DEEPSEEK_API_KEY="$input_key"
+            echo "✅ DeepSeek API key received (${#input_key} characters)"
+        else
+            echo "⚠️  No DeepSeek API key provided. Add it manually later."
+        fi
     fi
     
     # Create wrappers
-    create_claude_glm_wrapper
-    create_claude_glm_45_wrapper
-    create_claude_glm_fast_wrapper
+    if [ "$provider_choice" = "1" ] || [ "$provider_choice" = "4" ] || [ "$provider_choice" = "5" ]; then
+        create_claude_glm_wrapper
+        create_claude_glm_45_wrapper
+        create_claude_glm_fast_wrapper
+    fi
+    
+    if [ "$provider_choice" = "2" ] || [ "$provider_choice" = "4" ] || [ "$provider_choice" = "5" ]; then
+        create_claude_minimax_wrapper
+    fi
+    
+    if [ "$provider_choice" = "3" ] || [ "$provider_choice" = "4" ] || [ "$provider_choice" = "5" ]; then
+        create_claude_deepseek_wrapper
+    fi
+    
     create_shell_aliases
     
     # Final instructions
@@ -679,27 +874,74 @@ main() {
     echo "📝 After sourcing, you can use:"
     echo ""
     echo "Commands:"
-    echo "   claude-glm      - GLM-4.6 (latest)"
-    echo "   claude-glm-4.5  - GLM-4.5"
-    echo "   claude-glm-fast - GLM-4.5-Air (fast)"
+    
+    if [ "$provider_choice" = "1" ] || [ "$provider_choice" = "4" ] || [ "$provider_choice" = "5" ]; then
+        echo "   claude-glm      - GLM-4.6 (latest)"
+        echo "   claude-glm-4.5  - GLM-4.5"
+        echo "   claude-glm-fast - GLM-4.5-Air (fast)"
+    fi
+    
+    if [ "$provider_choice" = "2" ] || [ "$provider_choice" = "4" ] || [ "$provider_choice" = "5" ]; then
+        echo "   ccm             - MiniMax-M2 (with full config)"
+    fi
+    
+    if [ "$provider_choice" = "3" ] || [ "$provider_choice" = "4" ] || [ "$provider_choice" = "5" ]; then
+        echo "   ccd             - DeepSeek (deepseek-chat)"
+    fi
+    
     echo ""
     echo "Aliases:"
     echo "   cc    - claude (regular Claude)"
-    echo "   ccg   - claude-glm (GLM-4.6)"
-    echo "   ccg45 - claude-glm-4.5 (GLM-4.5)"
-    echo "   ccf   - claude-glm-fast"
+    
+    if [ "$provider_choice" = "1" ] || [ "$provider_choice" = "4" ] || [ "$provider_choice" = "5" ]; then
+        echo "   ccg   - claude-glm (GLM-4.6)"
+        echo "   ccg45 - claude-glm-4.5 (GLM-4.5)"
+        echo "   ccf   - claude-glm-fast"
+    fi
+    
+    if [ "$provider_choice" = "2" ] || [ "$provider_choice" = "4" ] || [ "$provider_choice" = "5" ]; then
+        echo "   ccm   - MiniMax-M2"
+    fi
+    
+    if [ "$provider_choice" = "3" ] || [ "$provider_choice" = "4" ] || [ "$provider_choice" = "5" ]; then
+        echo "   ccd   - DeepSeek"
+    fi
+    
     echo ""
     
-    if [ "$ZAI_API_KEY" = "YOUR_ZAI_API_KEY_HERE" ]; then
-        echo "⚠️  Don't forget to add your API key to:"
+    if [ "$ZAI_API_KEY" = "YOUR_ZAI_API_KEY_HERE" ] && ([ "$provider_choice" = "1" ] || [ "$provider_choice" = "4" ] || [ "$provider_choice" = "5" ]); then
+        echo "⚠️  Don't forget to add your Z.AI API key to:"
         echo "   $USER_BIN_DIR/claude-glm"
         echo "   $USER_BIN_DIR/claude-glm-4.5"
         echo "   $USER_BIN_DIR/claude-glm-fast"
+        echo ""
+    fi
+    
+    if [ "$MINIMAX_API_KEY" = "YOUR_MINIMAX_API_KEY_HERE" ] && ([ "$provider_choice" = "2" ] || [ "$provider_choice" = "4" ] || [ "$provider_choice" = "5" ]); then
+        echo "⚠️  Don't forget to add your MiniMax API key to:"
+        echo "   $USER_BIN_DIR/ccm"
+        echo ""
+    fi
+    
+    if [ "$DEEPSEEK_API_KEY" = "YOUR_DEEPSEEK_API_KEY_HERE" ] && ([ "$provider_choice" = "3" ] || [ "$provider_choice" = "4" ] || [ "$provider_choice" = "5" ]); then
+        echo "⚠️  Don't forget to add your DeepSeek API key to:"
+        echo "   $USER_BIN_DIR/ccd"
+        echo ""
     fi
 
-    echo ""
     echo "📁 Installation location: $USER_BIN_DIR"
-    echo "📁 Config directories: ~/.claude-glm, ~/.claude-glm-45, ~/.claude-glm-fast"
+    
+    if [ "$provider_choice" = "1" ] || [ "$provider_choice" = "4" ] || [ "$provider_choice" = "5" ]; then
+        echo "📁 GLM Config directories: ~/.claude-glm, ~/.claude-glm-45, ~/.claude-glm-fast"
+    fi
+    
+    if [ "$provider_choice" = "2" ] || [ "$provider_choice" = "4" ] || [ "$provider_choice" = "5" ]; then
+        echo "📁 MiniMax Config directory: ~/.claude-minimax"
+    fi
+    
+    if [ "$provider_choice" = "3" ] || [ "$provider_choice" = "4" ] || [ "$provider_choice" = "5" ]; then
+        echo "📁 DeepSeek Config directory: ~/.claude-deepseek"
+    fi
 }
 
 # Error handler

@@ -1,15 +1,19 @@
 {
-  "name": "claude-glm-installer",
-  "version": "1.0.3",
-  "description": "Cross-platform installer for Claude Code with Z.AI GLM models. Run with: npx claude-glm-installer",
+  "name": "claude-ai-providers-installer",
+  "version": "3.0.0",
+  "description": "Cross-platform installer for Claude Code with multiple AI providers (GLM, MiniMax, DeepSeek). Run with: npx claude-ai-providers-installer",
   "keywords": [
     "claude",
     "claude-code",
     "glm",
+    "minimax",
+    "deepseek",
     "z.ai",
     "ai",
     "llm",
-    "installer"
+    "installer",
+    "multi-provider",
+    "ai-providers"
   ],
   "homepage": "https://github.com/JoeInnsp23/claude-glm-wrapper#readme",
   "bugs": {
@@ -22,6 +26,7 @@
   "license": "MIT",
   "author": "Joseph Stephenson-Mouzo",
   "bin": {
+    "claude-ai-providers-installer": "bin/cli.js",
     "claude-glm-installer": "bin/cli.js"
   },
   "files": [

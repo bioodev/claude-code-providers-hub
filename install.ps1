@@ -30,6 +30,10 @@ $UserBinDir = "$env:USERPROFILE\.local\bin"
 $GlmConfigDir = "$env:USERPROFILE\.claude-glm"
 $Glm45ConfigDir = "$env:USERPROFILE\.claude-glm-45"
 $GlmFastConfigDir = "$env:USERPROFILE\.claude-glm-fast"
+$MiniMaxConfigDir = "$env:USERPROFILE\.claude-minimax"
+$DeepSeekConfigDir = "$env:USERPROFILE\.claude-deepseek"
+$MiniMaxApiKey = "YOUR_MINIMAX_API_KEY_HERE"
+$DeepSeekApiKey = "YOUR_DEEPSEEK_API_KEY_HERE"
 $ZaiApiKey = "YOUR_ZAI_API_KEY_HERE"
 
 # Debug logging
@@ -194,7 +198,9 @@ function Add-PowerShellAliases {
         $_ -notmatch "Set-Alias cc " -and
         $_ -notmatch "Set-Alias ccg " -and
         $_ -notmatch "Set-Alias ccg45 " -and
-        $_ -notmatch "Set-Alias ccf "
+        $_ -notmatch "Set-Alias ccf " -and
+        $_ -notmatch "Set-Alias ccm " -and
+        $_ -notmatch "Set-Alias ccd "
     }
 
     # Add new aliases
@@ -205,6 +211,8 @@ Set-Alias cc claude
 Set-Alias ccg claude-glm
 Set-Alias ccg45 claude-glm-4.5
 Set-Alias ccf claude-glm-fast
+Set-Alias ccm ccm
+Set-Alias ccd ccd
 "@
 
     $newContent = $filteredContent + $aliases
@@ -349,6 +357,104 @@ function New-ClaudeGlmFastWrapper {
 
     Set-Content -Path $wrapperPath -Value $wrapperContent
     Write-Host "OK: Installed claude-glm-fast at $wrapperPath" -ForegroundColor Green
+}
+
+# Create the MiniMax wrapper
+function New-ClaudeMiniMaxWrapper {
+    $wrapperPath = Join-Path $UserBinDir "ccm.ps1"
+
+    # Build wrapper content using array and join to avoid nested here-strings
+    $wrapperContent = @(
+        '# CCM - Claude Code with MiniMax provider',
+        '',
+        '# Set MiniMax environment variables',
+        '$env:ANTHROPIC_BASE_URL = "https://api.minimax.io/anthropic"',
+        "`$env:ANTHROPIC_AUTH_TOKEN = `"$MiniMaxApiKey`"",
+        '$env:ANTHROPIC_MODEL = "MiniMax-M2"',
+        '$env:ANTHROPIC_SMALL_FAST_MODEL = "MiniMax-M2"',
+        '$env:ANTHROPIC_DEFAULT_SONNET_MODEL = "MiniMax-M2"',
+        '$env:ANTHROPIC_DEFAULT_OPUS_MODEL = "MiniMax-M2"',
+        '$env:ANTHROPIC_DEFAULT_HAIKU_MODEL = "MiniMax-M2"',
+        '$env:API_TIMEOUT_MS = "3000000"',
+        '$env:CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC = "1"',
+        '',
+        '# Use custom config directory to avoid conflicts',
+        "`$env:CLAUDE_HOME = `"$MiniMaxConfigDir`"",
+        '',
+        '# Create config directory if it doesn''t exist',
+        'if (-not (Test-Path $env:CLAUDE_HOME)) {',
+        '    New-Item -ItemType Directory -Path $env:CLAUDE_HOME -Force | Out-Null',
+        '}',
+        '',
+        '# Create/update settings file with MiniMax configuration',
+        '$settingsJson = "{`"env`":{`"ANTHROPIC_BASE_URL`":`"https://api.minimax.io/anthropic`",`"ANTHROPIC_AUTH_TOKEN`":`"' + $MiniMaxApiKey + '`",`"API_TIMEOUT_MS`":`"3000000`",`"CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC`":1,`"ANTHROPIC_MODEL`":`"MiniMax-M2`",`"ANTHROPIC_SMALL_FAST_MODEL`":`"MiniMax-M2`",`"ANTHROPIC_DEFAULT_SONNET_MODEL`":`"MiniMax-M2`",`"ANTHROPIC_DEFAULT_OPUS_MODEL`":`"MiniMax-M2`",`"ANTHROPIC_DEFAULT_HAIKU_MODEL`":`"MiniMax-M2`"}}"',
+        'Set-Content -Path (Join-Path $env:CLAUDE_HOME "settings.json") -Value $settingsJson',
+        '',
+        '# Launch Claude Code with custom config',
+        'Write-Host "MINIMAX: Starting Claude Code with MiniMax (M2 Model)..."',
+        'Write-Host "CONFIG: Config directory: $env:CLAUDE_HOME"',
+        'Write-Host ""',
+        '',
+        '# Check if claude exists',
+        'if (-not (Get-Command claude -ErrorAction SilentlyContinue)) {',
+        '    Write-Host "ERROR: ''claude'' command not found!"',
+        '    Write-Host "Please ensure Claude Code is installed and in your PATH"',
+        '    exit 1',
+        '}',
+        '',
+        '# Run the actual claude command',
+        '& claude $args'
+# Create the DeepSeek wrapper
+function New-ClaudeDeepSeekWrapper {
+    $wrapperPath = Join-Path $UserBinDir "ccd.ps1"
+
+    # Build wrapper content using array and join to avoid nested here-strings
+    $wrapperContent = @(
+        '# CCD - Claude Code with DeepSeek provider',
+        '',
+        '# Set DeepSeek environment variables',
+        '$env:ANTHROPIC_BASE_URL = "https://api.deepseek.com/anthropic"',
+        "`$env:ANTHROPIC_AUTH_TOKEN = `"$DeepSeekApiKey`"",
+        '$env:ANTHROPIC_MODEL = "deepseek-chat"',
+        '$env:ANTHROPIC_SMALL_FAST_MODEL = "deepseek-chat"',
+        '$env:API_TIMEOUT_MS = "600000"',
+        '$env:CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC = "1"',
+        '',
+        '# Use custom config directory to avoid conflicts',
+        "`$env:CLAUDE_HOME = `"$DeepSeekConfigDir`"",
+        '',
+        '# Create config directory if it doesn''t exist',
+        'if (-not (Test-Path $env:CLAUDE_HOME)) {',
+        '    New-Item -ItemType Directory -Path $env:CLAUDE_HOME -Force | Out-Null',
+        '}',
+        '',
+        '# Create/update settings file with DeepSeek configuration',
+        '$settingsJson = "{`"env`":{`"ANTHROPIC_BASE_URL`":`"https://api.deepseek.com/anthropic`",`"ANTHROPIC_AUTH_TOKEN`":`"' + $DeepSeekApiKey + '`",`"API_TIMEOUT_MS`":`"600000`",`"ANTHROPIC_MODEL`":`"deepseek-chat`",`"ANTHROPIC_SMALL_FAST_MODEL`":`"deepseek-chat`",`"CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC`":1}}"',
+        'Set-Content -Path (Join-Path $env:CLAUDE_HOME "settings.json") -Value $settingsJson',
+        '',
+        '# Launch Claude Code with custom config',
+        'Write-Host "DEEPSEEK: Starting Claude Code with DeepSeek (deepseek-chat)..."',
+        'Write-Host "CONFIG: Config directory: $env:CLAUDE_HOME"',
+        'Write-Host ""',
+        '',
+        '# Check if claude exists',
+        'if (-not (Get-Command claude -ErrorAction SilentlyContinue)) {',
+        '    Write-Host "ERROR: ''claude'' command not found!"',
+        '    Write-Host "Please ensure Claude Code is installed and in your PATH"',
+        '    exit 1',
+        '}',
+        '',
+        '# Run the actual claude command',
+        '& claude $args'
+    ) -join "`n"
+
+    Set-Content -Path $wrapperPath -Value $wrapperContent
+    Write-Host "OK: Installed ccd at $wrapperPath" -ForegroundColor Green
+}
+    ) -join "`n"
+
+    Set-Content -Path $wrapperPath -Value $wrapperContent
+    Write-Host "OK: Installed ccm at $wrapperPath" -ForegroundColor Green
 }
 
 # Check Claude Code availability
@@ -588,8 +694,9 @@ function Install-ClaudeGlm {
     # Check if already installed
     $glmWrapper = Join-Path $UserBinDir "claude-glm.ps1"
     $glmFastWrapper = Join-Path $UserBinDir "claude-glm-fast.ps1"
+    $miniMaxWrapper = Join-Path $UserBinDir "ccm.ps1"
 
-    if ((Test-Path $glmWrapper) -or (Test-Path $glmFastWrapper)) {
+    if ((Test-Path $glmWrapper) -or (Test-Path $glmFastWrapper) -or (Test-Path $miniMaxWrapper)) {
         Write-Host ""
         Write-Host "OK: Existing installation detected!"
         Write-Host "1. Update API key only"
@@ -599,15 +706,29 @@ function Install-ClaudeGlm {
 
         switch ($choice) {
             "1" {
-                $inputKey = Read-Host "Enter your Z.AI API key"
-                if ($inputKey) {
-                    $script:ZaiApiKey = $inputKey
-                    New-ClaudeGlmWrapper
-                    New-ClaudeGlm45Wrapper
-                    New-ClaudeGlmFastWrapper
-                    Write-Host "OK: API key updated!"
-                    exit 0
+                Write-Host "Choose provider to update:"
+                Write-Host "1. Z.AI GLM (GLM-4.6, GLM-4.5, GLM-4.5-Air)"
+                Write-Host "2. MiniMax (MiniMax-M2)"
+                $providerChoice = Read-Host "Provider (1-2)"
+
+                if ($providerChoice -eq "1") {
+                    $inputKey = Read-Host "Enter your Z.AI API key"
+                    if ($inputKey) {
+                        $script:ZaiApiKey = $inputKey
+                        New-ClaudeGlmWrapper
+                        New-ClaudeGlm45Wrapper
+                        New-ClaudeGlmFastWrapper
+                        Write-Host "OK: GLM API key updated!"
+                    }
+                } elseif ($providerChoice -eq "2") {
+                    $inputKey = Read-Host "Enter your MiniMax API key"
+                    if ($inputKey) {
+                        $script:MiniMaxApiKey = $inputKey
+                        New-ClaudeMiniMaxWrapper
+                        Write-Host "OK: MiniMax API key updated!"
+                    }
                 }
+                exit 0
             }
             "2" {
                 Write-Host "Reinstalling..."
@@ -618,26 +739,53 @@ function Install-ClaudeGlm {
         }
     }
 
-    # Get API key
+    # Get API keys
     Write-Host ""
-    Write-Host "Enter your Z.AI API key (from https://z.ai/manage-apikey/apikey-list)"
-    $inputKey = Read-Host "API Key"
+    Write-Host "Choose which providers to install:"
+    Write-Host "1. Z.AI GLM only (GLM-4.6, GLM-4.5, GLM-4.5-Air)"
+    Write-Host "2. MiniMax only (MiniMax-M2)"
+    Write-Host "3. Both providers"
+    $providerChoice = Read-Host "Choice (1-3)"
 
-    if ($inputKey) {
-        $script:ZaiApiKey = $inputKey
-        $keyLength = $inputKey.Length
-        Write-Host "OK: API key received ($keyLength characters)"
-    } else {
-        Write-Host "WARNING: No API key provided. Add it manually later to:"
-        Write-Host "   $UserBinDir\claude-glm.ps1"
-        Write-Host "   $UserBinDir\claude-glm-4.5.ps1"
-        Write-Host "   $UserBinDir\claude-glm-fast.ps1"
+    if ($providerChoice -eq "1" -or $providerChoice -eq "3") {
+        Write-Host ""
+        Write-Host "Enter your Z.AI API key (from https://z.ai/manage-apikey/apikey-list)"
+        $inputKey = Read-Host "Z.AI API Key"
+
+        if ($inputKey) {
+            $script:ZaiApiKey = $inputKey
+            $keyLength = $inputKey.Length
+            Write-Host "OK: Z.AI API key received ($keyLength characters)"
+        } else {
+            Write-Host "WARNING: No Z.AI API key provided. Add it manually later."
+        }
+    }
+
+    if ($providerChoice -eq "2" -or $providerChoice -eq "3") {
+        Write-Host ""
+        Write-Host "Enter your MiniMax API key (from https://api.minimax.io)"
+        $inputKey = Read-Host "MiniMax API Key"
+
+        if ($inputKey) {
+            $script:MiniMaxApiKey = $inputKey
+            $keyLength = $inputKey.Length
+            Write-Host "OK: MiniMax API key received ($keyLength characters)"
+        } else {
+            Write-Host "WARNING: No MiniMax API key provided. Add it manually later."
+        }
     }
 
     # Create wrappers
-    New-ClaudeGlmWrapper
-    New-ClaudeGlm45Wrapper
-    New-ClaudeGlmFastWrapper
+    if ($providerChoice -eq "1" -or $providerChoice -eq "3") {
+        New-ClaudeGlmWrapper
+        New-ClaudeGlm45Wrapper
+        New-ClaudeGlmFastWrapper
+    }
+
+    if ($providerChoice -eq "2" -or $providerChoice -eq "3") {
+        New-ClaudeMiniMaxWrapper
+    }
+
     Add-PowerShellAliases
 
     # Final instructions
@@ -655,27 +803,56 @@ function Install-ClaudeGlm {
     Write-Host "INFO: After reloading, you can use:"
     Write-Host ""
     Write-Host "Commands:"
-    Write-Host "   claude-glm      - GLM-4.6 (latest)"
-    Write-Host "   claude-glm-4.5  - GLM-4.5"
-    Write-Host "   claude-glm-fast - GLM-4.5-Air (fast)"
+    
+    if ($providerChoice -eq "1" -or $providerChoice -eq "3") {
+        Write-Host "   claude-glm      - GLM-4.6 (latest)"
+        Write-Host "   claude-glm-4.5  - GLM-4.5"
+        Write-Host "   claude-glm-fast - GLM-4.5-Air (fast)"
+    }
+    
+    if ($providerChoice -eq "2" -or $providerChoice -eq "3") {
+        Write-Host "   ccm             - MiniMax-M2 (with full config)"
+    }
+    
     Write-Host ""
     Write-Host "Aliases:"
     Write-Host "   cc    - claude (regular Claude)"
-    Write-Host "   ccg   - claude-glm (GLM-4.6)"
-    Write-Host "   ccg45 - claude-glm-4.5 (GLM-4.5)"
-    Write-Host "   ccf   - claude-glm-fast"
+    
+    if ($providerChoice -eq "1" -or $providerChoice -eq "3") {
+        Write-Host "   ccg   - claude-glm (GLM-4.6)"
+        Write-Host "   ccg45 - claude-glm-4.5 (GLM-4.5)"
+        Write-Host "   ccf   - claude-glm-fast"
+    }
+    
+    if ($providerChoice -eq "2" -or $providerChoice -eq "3") {
+        Write-Host "   ccm   - MiniMax-M2"
+    }
+    
     Write-Host ""
-
-    if ($ZaiApiKey -eq "YOUR_ZAI_API_KEY_HERE") {
-        Write-Host "WARNING: Do not forget to add your API key to:"
+    
+    if ($ZaiApiKey -eq "YOUR_ZAI_API_KEY_HERE" -and $providerChoice -ne "2") {
+        Write-Host "WARNING: Do not forget to add your Z.AI API key to:"
         Write-Host "   $UserBinDir\claude-glm.ps1"
         Write-Host "   $UserBinDir\claude-glm-4.5.ps1"
         Write-Host "   $UserBinDir\claude-glm-fast.ps1"
+        Write-Host ""
+    }
+    
+    if ($MiniMaxApiKey -eq "YOUR_MINIMAX_API_KEY_HERE" -and $providerChoice -ne "1") {
+        Write-Host "WARNING: Do not forget to add your MiniMax API key to:"
+        Write-Host "   $UserBinDir\ccm.ps1"
+        Write-Host ""
     }
 
-    Write-Host ""
     Write-Host "LOCATION: Installation location: $UserBinDir"
-    Write-Host "LOCATION: Config directories: $GlmConfigDir, $Glm45ConfigDir, $GlmFastConfigDir"
+    
+    if ($providerChoice -eq "1" -or $providerChoice -eq "3") {
+        Write-Host "LOCATION: GLM Config directories: $GlmConfigDir, $Glm45ConfigDir, $GlmFastConfigDir"
+    }
+    
+    if ($providerChoice -eq "2" -or $providerChoice -eq "3") {
+        Write-Host "LOCATION: MiniMax Config directory: $MiniMaxConfigDir"
+    }
 }
 
 # Test error functionality if requested

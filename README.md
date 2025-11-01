@@ -1,15 +1,17 @@
-# Claude-GLM Wrapper
+# Claude AI Providers Installer
 
-Use [Z.AI's GLM models](https://z.ai) with [Claude Code](https://www.anthropic.com/claude-code) — **without losing your existing Claude setup!**
+Use [Z.AI's GLM models](https://z.ai), [MiniMax models](https://api.minimax.io), and [DeepSeek models](https://api.deepseek.com) with [Claude Code](https://www.anthropic.com/claude-code) — **without losing your existing Claude setup!**
 
-Switch freely between GLM-4.6, GLM-4.5, GLM-4.5-Air, and original Anthropic Claude models using simple commands.
+Switch freely between GLM-4.6, GLM-4.5, GLM-4.5-Air, MiniMax-M2, DeepSeek-chat, and original Anthropic Claude models using simple commands.
 
-## Why This Wrapper?
+## Why This Installer?
 
-**💰 Cost-effective**: Z.AI's GLM models offer competitive pricing (often with free tiers)
+**💰 Cost-effective**: Z.AI's GLM, MiniMax, and DeepSeek offer competitive pricing (often with free tiers)
 **🔄 Risk-free**: Your existing Claude Code setup remains completely untouched
-**⚡ Multiple options**: Choose between GLM-4.6 (latest), GLM-4.5, and GLM-4.5-Air (fast)
+**⚡ Multiple options**: Choose between GLM models, MiniMax-M2, DeepSeek-chat, or regular Claude
 **🎯 Perfect for**: Development, testing, or when you want to conserve your Claude API credits
+**🏢 Multiple providers**: Support for Z.AI, MiniMax, and DeepSeek APIs
+**⏱️ Optimized timeouts**: DeepSeek configured with 10-minute timeout to prevent client timeouts
 
 ## Quick Start
 
@@ -18,6 +20,8 @@ Switch freely between GLM-4.6, GLM-4.5, GLM-4.5-Air, and original Anthropic Clau
 **One command works everywhere - Windows, macOS, and Linux:**
 
 ```bash
+npx claude-ai-providers-installer
+# or
 npx claude-glm-installer
 ```
 
@@ -30,13 +34,15 @@ source ~/.zshrc  # or ~/.bashrc
 . $PROFILE
 ```
 
-### Start Using GLM Models
+### Start Using Multi-Provider Models
 
 **All Platforms:**
 ```bash
 ccg              # Claude Code with GLM-4.6 (latest)
 ccg45            # Claude Code with GLM-4.5
 ccf              # Claude Code with GLM-4.5-Air (faster)
+ccm              # Claude Code with MiniMax-M2 (full config)
+ccd              # Claude Code with DeepSeek (deepseek-chat)
 cc               # Regular Claude Code
 ```
 
@@ -67,8 +73,9 @@ iwr -useb https://raw.githubusercontent.com/JoeInnsp23/claude-glm-wrapper/powers
 
 ## Features
 
-- 🚀 **Easy switching** between GLM and Claude models
-- ⚡ **Multiple GLM models**: GLM-4.6 (latest), GLM-4.5, and GLM-4.5-Air (fast)
+- 🚀 **Easy switching** between GLM, MiniMax, DeepSeek, and Claude models
+- ⚡ **Multiple models**: GLM-4.6 (latest), GLM-4.5, GLM-4.5-Air (fast), MiniMax-M2, and DeepSeek-chat
+- 🏢 **Multiple providers**: Support for Z.AI, MiniMax, and DeepSeek APIs
 - 🔒 **No sudo/admin required**: Installs to user's home directory
 - 🖥️ **Cross-platform**: Works on Windows, macOS, and Linux
 - 📁 **Isolated configs**: Each model uses its own config directory — no conflicts!
@@ -78,7 +85,10 @@ iwr -useb https://raw.githubusercontent.com/JoeInnsp23/claude-glm-wrapper/powers
 
 1. **Node.js** (v14+): For npx installation - [nodejs.org](https://nodejs.org/)
 2. **Claude Code**: Install from [anthropic.com/claude-code](https://www.anthropic.com/claude-code)
-3. **Z.AI API Key**: Get your free key from [z.ai/manage-apikey/apikey-list](https://z.ai/manage-apikey/apikey-list)
+3. **API Keys** (choose one or more):
+   - **Z.AI API Key**: Get your free key from [z.ai/manage-apikey/apikey-list](https://z.ai/manage-apikey/apikey-list)
+   - **MiniMax API Key**: Get your key from [api.minimax.io](https://api.minimax.io)
+   - **DeepSeek API Key**: Get your key from [api.deepseek.com](https://api.deepseek.com)
 
 *Note: If you don't have Node.js, you can use the platform-specific installers (see Quick Start above)*
 
@@ -89,13 +99,14 @@ iwr -useb https://raw.githubusercontent.com/JoeInnsp23/claude-glm-wrapper/powers
 **One command for Windows, macOS, and Linux:**
 
 ```bash
-npx claude-glm-installer
+npx claude-ai-providers-installer
 ```
 
 The installer will:
 - Auto-detect your operating system
 - Check if Claude Code is installed
-- Ask for your Z.AI API key
+- Let you choose which provider(s) to install (GLM, MiniMax, or both)
+- Ask for your API key(s)
 - Create platform-appropriate wrapper scripts
 - Add convenient aliases to your shell/profile
 
@@ -166,6 +177,7 @@ The installer creates these commands and aliases:
 | `ccg` | `claude-glm` | GLM-4.6 (latest) | Best quality GLM model |
 | `ccg45` | `claude-glm-4.5` | GLM-4.5 | Previous version of GLM |
 | `ccf` | `claude-glm-fast` | GLM-4.5-Air (fast) | Quicker responses, lower cost |
+| `ccm` | `ccm` | MiniMax-M2 | MiniMax with full configuration |
 
 **💡 Tip**: Use the short aliases! They're faster to type and easier to remember.
 
@@ -173,6 +185,7 @@ The installer creates these commands and aliases:
 
 Each command starts a **separate Claude Code session** with different configurations:
 - `ccg`, `ccg45`, and `ccf` use Z.AI's API with your Z.AI key
+- `ccm` uses MiniMax's API with your MiniMax key (includes timeout and traffic settings)
 - `cc` uses Anthropic's API with your Anthropic key (default Claude setup)
 - Your configurations **never conflict** — they're stored in separate directories
 
@@ -233,14 +246,25 @@ ccg
 # ... longer coding session ...
 ```
 
-### Workflow 3: Multiple Projects
+### Workflow 3: Using MiniMax Provider
+```bash
+# Use MiniMax-M2 with full configuration
+ccm
+# ... coding session with MiniMax ...
+```
+
+### Workflow 4: Multiple Projects
 ```bash
 # Project 1: Use GLM to save costs
 cd ~/project1
 ccg
 
-# Project 2: Use Claude for critical work
+# Project 2: Use MiniMax for different tasks
 cd ~/project2
+ccm
+
+# Project 3: Use Claude for critical work
+cd ~/project3
 cc
 ```
 
@@ -258,6 +282,7 @@ Each wrapper uses its own configuration directory to prevent conflicts:
 | `claude-glm` | `~/.claude-glm/` | GLM-4.6 settings and history |
 | `claude-glm-4.5` | `~/.claude-glm-45/` | GLM-4.5 settings and history |
 | `claude-glm-fast` | `~/.claude-glm-fast/` | GLM-4.5-Air settings and history |
+| `ccm` | `~/.claude-minimax/` | MiniMax-M2 settings and history |
 | `claude` | `~/.claude/` (default) | Your original Claude setup |
 
 **Windows:**
@@ -266,6 +291,7 @@ Each wrapper uses its own configuration directory to prevent conflicts:
 | `claude-glm` | `%USERPROFILE%\.claude-glm\` | GLM-4.6 settings and history |
 | `claude-glm-4.5` | `%USERPROFILE%\.claude-glm-45\` | GLM-4.5 settings and history |
 | `claude-glm-fast` | `%USERPROFILE%\.claude-glm-fast\` | GLM-4.5-Air settings and history |
+| `ccm` | `%USERPROFILE%\.claude-minimax\` | MiniMax-M2 settings and history |
 | `claude` | `%USERPROFILE%\.claude\` (default) | Your original Claude setup |
 
 **This means:**
@@ -279,11 +305,13 @@ Each wrapper uses its own configuration directory to prevent conflicts:
 - `claude-glm` (GLM-4.6)
 - `claude-glm-4.5` (GLM-4.5)
 - `claude-glm-fast` (GLM-4.5-Air)
+- `ccm` (MiniMax-M2)
 
 **Windows:** `%USERPROFILE%\.local\bin\`
 - `claude-glm.ps1` (GLM-4.6)
 - `claude-glm-4.5.ps1` (GLM-4.5)
 - `claude-glm-fast.ps1` (GLM-4.5-Air)
+- `ccm.ps1` (MiniMax-M2)
 
 These are just tiny wrapper scripts (bash or PowerShell) that set the right environment variables before launching Claude Code.
 
@@ -471,14 +499,15 @@ Then reload: `. $PROFILE`
 ### Q: Will this affect my existing Claude Code setup?
 **A**: No! Your regular Claude Code setup is completely untouched. The wrappers use separate config directories.
 
-### Q: Can I use both GLM and Claude in the same project?
-**A**: Yes! Just use `ccg` for GLM sessions and `cc` for Claude sessions. Each maintains its own chat history.
+### Q: Can I use both GLM, MiniMax, and Claude in the same project?
+**A**: Yes! Just use `ccg` for GLM sessions, `ccm` for MiniMax sessions, and `cc` for Claude sessions. Each maintains its own chat history.
 
 ### Q: Which model should I use?
 **A**:
-- Use **`ccg` (GLM-4.6)** for: Latest model, complex coding, refactoring, detailed explanations
-- Use **`ccg45` (GLM-4.5)** for: Previous version, if you need consistency with older projects
-- Use **`ccf` (GLM-4.5-Air)** for: Quick questions, simple tasks, faster responses
+- Use **`ccg` (GLM-4.6)** for: Latest GLM model, complex coding, refactoring, detailed explanations
+- Use **`ccg45` (GLM-4.5)** for: Previous version of GLM, if you need consistency with older projects
+- Use **`ccf` (GLM-4.5-Air)** for: Quick questions, simple tasks, faster responses, lower cost
+- Use **`ccm` (MiniMax-M2)** for: MiniMax provider with full configuration (timeout and traffic settings)
 - Use **`cc` (Claude)** for: Your regular Anthropic Claude setup
 
 ### Q: Is this secure?
@@ -490,8 +519,8 @@ Then reload: `. $PROFILE`
 ### Q: Can I use a different Z.AI model?
 **A**: Yes! Edit the wrapper scripts in `~/.local/bin/` and change the `ANTHROPIC_MODEL` variable to any model Z.AI supports.
 
-### Q: What happens if I run out of Z.AI credits?
-**A**: The GLM commands will fail with an API error. Just switch to regular Claude using `cc` until you add more credits.
+### Q: What happens if I run out of credits on one provider?
+**A**: Commands using that provider will fail with an API error. Just switch to another provider using `cc` (Claude), `ccg` (GLM), or `ccm` (MiniMax) until you add more credits to the affected provider.
 
 ## Contributing
 
