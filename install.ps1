@@ -939,13 +939,64 @@ function Install-ClaudeGlm {
     if ((Test-Path $glmWrapper) -or (Test-Path $glmFastWrapper) -or (Test-Path $miniMaxWrapper)) {
         Write-Host ""
         Write-Host "OK: Existing installation detected!"
-        Write-Host "1. Update API key only"
-        Write-Host "2. Reinstall everything"
-        Write-Host "3. Cancel"
-        $choice = Read-Host "Choice (1-3)"
+        Write-Host "1. Update models only (keep API keys)"
+        Write-Host "2. Update API key only"
+        Write-Host "3. Reinstall everything"
+        Write-Host "4. Cancel"
+        $choice = Read-Host "Choice (1-4)"
 
         switch ($choice) {
             "1" {
+                # Update models only - extract existing API keys from wrappers
+                Write-Host "Updating models (preserving API keys)..."
+
+                # Extract API keys from existing wrappers
+                if (Test-Path $glmWrapper) {
+                    $content = Get-Content $glmWrapper -Raw
+                    if ($content -match 'env:ANTHROPIC_AUTH_TOKEN = "([^"]+)"') {
+                        $script:ZaiApiKey = $matches[1]
+                    }
+                }
+                if (Test-Path $glmFastWrapper -and -not $script:ZaiApiKey) {
+                    $content = Get-Content $glmFastWrapper -Raw
+                    if ($content -match 'env:ANTHROPIC_AUTH_TOKEN = "([^"]+)"') {
+                        $script:ZaiApiKey = $matches[1]
+                    }
+                }
+                if (Test-Path $miniMaxWrapper) {
+                    $content = Get-Content $miniMaxWrapper -Raw
+                    if ($content -match 'env:ANTHROPIC_AUTH_TOKEN = "([^"]+)"') {
+                        $script:MiniMaxApiKey = $matches[1]
+                    }
+                }
+                $deepSeekWrapper = Join-Path $UserBinDir "ccd.ps1"
+                if (Test-Path $deepSeekWrapper) {
+                    $content = Get-Content $deepSeekWrapper -Raw
+                    if ($content -match 'env:ANTHROPIC_AUTH_TOKEN = "([^"]+)"') {
+                        $script:DeepSeekApiKey = $matches[1]
+                    }
+                }
+
+                # Regenerate wrappers with new models
+                if ($script:ZaiApiKey) {
+                    New-ClaudeGlmWrapper
+                    New-ClaudeGlmFastWrapper
+                    Write-Host "OK: GLM models updated to GLM-4.7!"
+                }
+                if ($script:MiniMaxApiKey) {
+                    New-ClaudeMiniMaxWrapper
+                    Write-Host "OK: MiniMax wrapper updated!"
+                }
+                if ($script:DeepSeekApiKey) {
+                    New-ClaudeDeepSeekWrapper
+                    Write-Host "OK: DeepSeek wrapper updated!"
+                }
+
+                Write-Host ""
+                Write-Host "Models updated! Your API keys were preserved."
+                exit 0
+            }
+            "2" {
                 Write-Host "Choose provider to update:"
                 Write-Host "1. Z.AI GLM (GLM-4.7, GLM-4.5-Air)"
                 Write-Host "2. MiniMax (MiniMax-M2)"
@@ -970,7 +1021,7 @@ function Install-ClaudeGlm {
                 }
                 exit 0
             }
-            "2" {
+            "3" {
                 Write-Host "Reinstalling..."
             }
             default {

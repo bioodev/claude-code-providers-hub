@@ -999,19 +999,57 @@ main() {
     if [ -f "$USER_BIN_DIR/claude-glm" ] || [ -f "$USER_BIN_DIR/claude-glm-fast" ] || [ -f "$USER_BIN_DIR/ccm" ] || [ -f "$USER_BIN_DIR/ccd" ]; then
         echo ""
         echo "✅ Existing installation detected!"
-        echo "1) Update API key only"
-        echo "2) Reinstall everything"
-        echo "3) Cancel"
-        read -p "Choice (1-3): " update_choice
-        
+        echo "1) Update models only (keep API keys)"
+        echo "2) Update API key only"
+        echo "3) Reinstall everything"
+        echo "4) Cancel"
+        read -p "Choice (1-4): " update_choice
+
         case "$update_choice" in
             1)
+                # Update models only - extract existing API keys from wrappers
+                echo "🔄 Updating models (preserving API keys)..."
+
+                # Extract API keys from existing wrappers
+                if [ -f "$USER_BIN_DIR/claude-glm" ]; then
+                    ZAI_API_KEY=$(grep "ANTHROPIC_AUTH_TOKEN=" "$USER_BIN_DIR/claude-glm" | sed 's/export ANTHROPIC_AUTH_TOKEN="//; s/"$//')
+                fi
+                if [ -f "$USER_BIN_DIR/claude-glm-fast" ]; then
+                    ZAI_API_KEY=${ZAI_API_KEY:-$(grep "ANTHROPIC_AUTH_TOKEN=" "$USER_BIN_DIR/claude-glm-fast" | sed 's/export ANTHROPIC_AUTH_TOKEN="//; s/"$//')}
+                fi
+                if [ -f "$USER_BIN_DIR/ccm" ]; then
+                    MINIMAX_API_KEY=$(grep "ANTHROPIC_AUTH_TOKEN=" "$USER_BIN_DIR/ccm" | sed 's/export ANTHROPIC_AUTH_TOKEN="//; s/"$//')
+                fi
+                if [ -f "$USER_BIN_DIR/ccd" ]; then
+                    DEEPSEEK_API_KEY=$(grep "ANTHROPIC_AUTH_TOKEN=" "$USER_BIN_DIR/ccd" | sed 's/export ANTHROPIC_AUTH_TOKEN="//; s/"$//')
+                fi
+
+                # Regenerate wrappers with new models
+                if [ -n "$ZAI_API_KEY" ]; then
+                    create_claude_glm_wrapper
+                    create_claude_glm_fast_wrapper
+                    echo "✅ GLM models updated to GLM-4.7!"
+                fi
+                if [ -n "$MINIMAX_API_KEY" ]; then
+                    create_claude_minimax_wrapper
+                    echo "✅ MiniMax wrapper updated!"
+                fi
+                if [ -n "$DEEPSEEK_API_KEY" ]; then
+                    create_claude_deepseek_wrapper
+                    echo "✅ DeepSeek wrapper updated!"
+                fi
+
+                echo ""
+                echo "🎉 Models updated! Your API keys were preserved."
+                exit 0
+                ;;
+            2)
                 echo "Choose provider to update:"
                 echo "1) Z.AI GLM (GLM-4.7, GLM-4.5-Air)"
                 echo "2) MiniMax (MiniMax-M2)"
                 echo "3) DeepSeek (deepseek-chat)"
                 read -p "Provider (1-3): " provider_choice
-                
+
                 if [ "$provider_choice" = "1" ]; then
                     read -p "Enter your Z.AI API key: " input_key
                     if [ -n "$input_key" ]; then
@@ -1037,7 +1075,7 @@ main() {
                 fi
                 exit 0
                 ;;
-            2)
+            3)
                 echo "Reinstalling..."
                 ;;
             *)
