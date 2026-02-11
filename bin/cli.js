@@ -60,7 +60,7 @@ function showProviders() {
   console.log('==========================');
   console.log('');
   console.log('1. GLM Provider (Z.AI)');
-  console.log('   Models: GLM-4.6, GLM-4.5, GLM-4.5-Air');
+  console.log('   Models: GLM-4.7, GLM-4.5-Air');
   console.log('   Commands: ccg, ccg45, ccf');
   console.log('   Config: ~/.claude-glm/');
   console.log('');

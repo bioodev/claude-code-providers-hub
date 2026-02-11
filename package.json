@@ -37,6 +37,7 @@
   },
   "files": [
     "bin/",
+    "lib/",
     "install.sh",
     "install.ps1",
     "README.md",

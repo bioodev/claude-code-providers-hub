@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **YAML-based provider configuration system** (`lib/providers.yaml`)
+  - Centralized configuration for all providers (Claude, GLM/Z.AI, MiniMax, DeepSeek)
+  - Easy model name updates without editing installer scripts
+  - Per-provider state management via `~/.claude-providers-hub/state.json`
+- Config loader module (`lib/config-loader.js`) for reading YAML and generating wrappers
+- New GLM-4.7 model support as default
+- GLM-4.5-Air (fast) model wrapper
+
+### Changed
+- **Updated default GLM model from 4.6 to 4.7**
+  - `claude-glm` wrapper now uses GLM-4.7
+  - Removed GLM-4.5 and GLM-4.6 wrapper options (simplified to just GLM-4.7 and GLM-Fast)
+- Installers now read from YAML config with fallback to hardcoded values
+- All providers now include proper model tier mappings (opus/sonnet/haiku)
+
+### Removed
+- GLM-4.5 wrapper (`claude-glm-4.5`, alias `ccg45`)
+- GLM-4.6 wrapper (`claude-glm-46`, alias `ccg46`)
+- Associated aliases and installer functions
+
+### Fixed
+- Critical PowerShell syntax error in `install.ps1` (missing function closure)
+- Inconsistent model naming in user-facing messages (now all reference GLM-4.7)
+
 ## [1.0.3] - 2025-10-01
 
 ### Changed
@@ -72,6 +97,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Terminal/PowerShell window persistence after errors
 
 [Unreleased]: https://github.com/bioodev/claude-code-providers-hub/compare/v1.0.3...HEAD
+[1.0.4]: https://github.com/bioodev/claude-code-providers-hub/compare/v1.0.3...v1.0.4
 [1.0.3]: https://github.com/bioodev/claude-code-providers-hub/compare/v1.0.2...v1.0.3
 [1.0.2]: https://github.com/bioodev/claude-code-providers-hub/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/bioodev/claude-code-providers-hub/compare/v1.0.0...v1.0.1

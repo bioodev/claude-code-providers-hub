@@ -4,7 +4,7 @@
 
 Use [Z.AI's GLM models](https://z.ai), [MiniMax models](https://api.minimax.io), and [DeepSeek models](https://api.deepseek.com) with [Claude Code](https://www.anthropic.com/claude-code) — **without losing your existing Claude setup!**
 
-Switch freely between GLM-4.6, GLM-4.5, GLM-4.5-Air, MiniMax-M2, DeepSeek-chat, and original Anthropic Claude models using simple commands.
+Switch freely between GLM-4.7, GLM-4.5-Air, MiniMax-M2, DeepSeek-chat, and original Anthropic Claude models using simple commands.
 
 ## Why This Installer?
 
@@ -48,7 +48,7 @@ source ~/.zshrc  # or ~/.bashrc
 
 **All Platforms:**
 ```bash
-ccg              # Claude Code with GLM-4.6 (latest)
+ccg              # Claude Code with GLM-4.7 (latest)
 ccg45            # Claude Code with GLM-4.5
 ccf              # Claude Code with GLM-4.5-Air (faster)
 ccm              # Claude Code with MiniMax-M2 (full config)
@@ -84,7 +84,7 @@ iwr -useb https://raw.githubusercontent.com/bioodev/claude-code-providers-hub/ma
 ## Features
 
 - 🚀 **Easy switching** between GLM, MiniMax, DeepSeek, and Claude models
-- ⚡ **Multiple models**: GLM-4.6 (latest), GLM-4.5, GLM-4.5-Air (fast), MiniMax-M2, and DeepSeek-chat
+- ⚡ **Multiple models**: GLM-4.7 (latest), GLM-4.5-Air (fast), MiniMax-M2, and DeepSeek-chat
 - 🏢 **Multiple providers**: Support for Z.AI, MiniMax, and DeepSeek APIs
 - 🔒 **No sudo/admin required**: Installs to user's home directory
 - 🖥️ **Cross-platform**: Works on Windows, macOS, and Linux
@@ -184,7 +184,7 @@ The installer creates these commands and aliases:
 | Alias | Full Command | What It Does | When to Use |
 |-------|--------------|--------------|-------------|
 | `cc` | `claude` | Regular Claude Code | Default - your normal Claude setup |
-| `ccg` | `claude-glm` | GLM-4.6 (latest) | Best quality GLM model |
+| `ccg` | `claude-glm` | GLM-4.7 (latest) | Best quality GLM model |
 | `ccg45` | `claude-glm-4.5` | GLM-4.5 | Previous version of GLM |
 | `ccf` | `claude-glm-fast` | GLM-4.5-Air (fast) | Quicker responses, lower cost |
 | `ccm` | `ccm` | MiniMax-M2 | MiniMax with full configuration |
@@ -204,7 +204,7 @@ Each command starts a **separate Claude Code session** with different configurat
 **Start a coding session with the latest GLM:**
 ```bash
 ccg
-# Opens Claude Code using GLM-4.6
+# Opens Claude Code using GLM-4.7
 ```
 
 **Use GLM-4.5:**
@@ -236,7 +236,7 @@ ccf "quick question about Python"
 
 ### Workflow 1: Testing with GLM, Production with Claude
 ```bash
-# Develop and test with cost-effective GLM-4.6
+# Develop and test with cost-effective GLM-4.7
 ccg
 # ... work on your code ...
 # exit
@@ -289,7 +289,7 @@ Each wrapper uses its own configuration directory to prevent conflicts:
 **macOS / Linux:**
 | Command | Config Directory | Purpose |
 |---------|-----------------|---------|
-| `claude-glm` | `~/.claude-glm/` | GLM-4.6 settings and history |
+| `claude-glm` | `~/.claude-glm/` | GLM-4.7 settings and history |
 | `claude-glm-4.5` | `~/.claude-glm-45/` | GLM-4.5 settings and history |
 | `claude-glm-fast` | `~/.claude-glm-fast/` | GLM-4.5-Air settings and history |
 | `ccm` | `~/.claude-minimax/` | MiniMax-M2 settings and history |
@@ -298,7 +298,7 @@ Each wrapper uses its own configuration directory to prevent conflicts:
 **Windows:**
 | Command | Config Directory | Purpose |
 |---------|-----------------|---------|
-| `claude-glm` | `%USERPROFILE%\.claude-glm\` | GLM-4.6 settings and history |
+| `claude-glm` | `%USERPROFILE%\.claude-glm\` | GLM-4.7 settings and history |
 | `claude-glm-4.5` | `%USERPROFILE%\.claude-glm-45\` | GLM-4.5 settings and history |
 | `claude-glm-fast` | `%USERPROFILE%\.claude-glm-fast\` | GLM-4.5-Air settings and history |
 | `ccm` | `%USERPROFILE%\.claude-minimax\` | MiniMax-M2 settings and history |
@@ -312,13 +312,13 @@ Each wrapper uses its own configuration directory to prevent conflicts:
 ### Wrapper Scripts Location
 
 **macOS / Linux:** `~/.local/bin/`
-- `claude-glm` (GLM-4.6)
+- `claude-glm` (GLM-4.7)
 - `claude-glm-4.5` (GLM-4.5)
 - `claude-glm-fast` (GLM-4.5-Air)
 - `ccm` (MiniMax-M2)
 
 **Windows:** `%USERPROFILE%\.local\bin\`
-- `claude-glm.ps1` (GLM-4.6)
+- `claude-glm.ps1` (GLM-4.7)
 - `claude-glm-4.5.ps1` (GLM-4.5)
 - `claude-glm-fast.ps1` (GLM-4.5-Air)
 - `ccm.ps1` (MiniMax-M2)
@@ -514,7 +514,7 @@ Then reload: `. $PROFILE`
 
 ### Q: Which model should I use?
 **A**:
-- Use **`ccg` (GLM-4.6)** for: Latest GLM model, complex coding, refactoring, detailed explanations
+- Use **`ccg` (GLM-4.7)** for: Latest GLM model, complex coding, refactoring, detailed explanations
 - Use **`ccg45` (GLM-4.5)** for: Previous version of GLM, if you need consistency with older projects
 - Use **`ccf` (GLM-4.5-Air)** for: Quick questions, simple tasks, faster responses, lower cost
 - Use **`ccm` (MiniMax-M2)** for: MiniMax provider with full configuration (timeout and traffic settings)
