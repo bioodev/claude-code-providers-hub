@@ -78,14 +78,14 @@ load_provider_vars() {
     case "$provider" in
         glm)
             case "$model" in
-                glm-47)
+                glm-51)
                     BASE_URL="https://api.z.ai/api/anthropic"
-                    MODEL_NAME="glm-4.7"
+                    MODEL_NAME="glm-5.1"
                     CONFIG_DIR="$HOME/.claude-glm"
-                    ANTHROPIC_MODEL="glm-4.7"
+                    ANTHROPIC_MODEL="glm-5.1"
                     ANTHROPIC_SMALL_FAST_MODEL="glm-4.5-air"
-                    ANTHROPIC_DEFAULT_OPUS_MODEL="glm-4.7"
-                    ANTHROPIC_DEFAULT_SONNET_MODEL="glm-4.7"
+                    ANTHROPIC_DEFAULT_OPUS_MODEL="glm-5.1"
+                    ANTHROPIC_DEFAULT_SONNET_MODEL="glm-5.1"
                     ANTHROPIC_DEFAULT_HAIKU_MODEL="glm-4.5-air"
                     ;;
                 glm-fast)
@@ -415,30 +415,37 @@ setup_user_bin() {
     fi
 }
 
-# Create the standard GLM wrapper (uses GLM-4.7 from YAML config)
+# Create the standard GLM wrapper (uses GLM-5.1 from YAML config)
 create_claude_glm_wrapper() {
     local wrapper_path="$USER_BIN_DIR/claude-glm"
 
     # Try to use YAML config if available
     if [ -f "$CONFIG_LOADER" ]; then
-        node "$CONFIG_LOADER" wrapper-bash "glm" "glm-47" "$ZAI_API_KEY" > "$wrapper_path" 2>/dev/null
-        if [ $? -eq 0 ]; then
-            chmod +x "$wrapper_path"
-            echo "✅ Installed claude-glm at $wrapper_path (from YAML config)"
-            return 0
+        local model_id
+        model_id=$(node "$CONFIG_LOADER" get-default-model "glm" 2>/dev/null)
+        if [ -n "$model_id" ]; then
+            node "$CONFIG_LOADER" wrapper-bash "glm" "$model_id" "$ZAI_API_KEY" > "$wrapper_path" 2>/dev/null
+            if [ $? -eq 0 ]; then
+                chmod +x "$wrapper_path"
+                echo "✅ Installed claude-glm at $wrapper_path (from YAML config)"
+                return 0
+            fi
         fi
     fi
 
     # Fallback to hardcoded template
     cat > "$wrapper_path" << EOF
 #!/bin/bash
-# Claude-GLM - Claude Code with Z.AI GLM-4.7 (Standard Model)
+# Claude-GLM - Claude Code with Z.AI GLM-5.1 (Standard Model)
 
 # Set Z.AI environment variables
 export ANTHROPIC_BASE_URL="https://api.z.ai/api/anthropic"
 export ANTHROPIC_AUTH_TOKEN="$ZAI_API_KEY"
-export ANTHROPIC_MODEL="glm-4.7"
+export ANTHROPIC_MODEL="glm-5.1"
 export ANTHROPIC_SMALL_FAST_MODEL="glm-4.5-air"
+export ANTHROPIC_DEFAULT_OPUS_MODEL="glm-5.1"
+export ANTHROPIC_DEFAULT_SONNET_MODEL="glm-5.1"
+export ANTHROPIC_DEFAULT_HAIKU_MODEL="glm-4.5-air"
 
 # Use custom config directory to avoid conflicts
 export CLAUDE_HOME="\$HOME/.claude-glm"
@@ -452,14 +459,17 @@ cat > "\$CLAUDE_HOME/settings.json" << SETTINGS
   "env": {
     "ANTHROPIC_BASE_URL": "https://api.z.ai/api/anthropic",
     "ANTHROPIC_AUTH_TOKEN": "$ZAI_API_KEY",
-    "ANTHROPIC_MODEL": "glm-4.7",
-    "ANTHROPIC_SMALL_FAST_MODEL": "glm-4.5-air"
+    "ANTHROPIC_MODEL": "glm-5.1",
+    "ANTHROPIC_SMALL_FAST_MODEL": "glm-4.5-air",
+    "ANTHROPIC_DEFAULT_OPUS_MODEL": "glm-5.1",
+    "ANTHROPIC_DEFAULT_SONNET_MODEL": "glm-5.1",
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "glm-4.5-air"
   }
 }
 SETTINGS
 
 # Launch Claude Code with custom config
-echo "🚀 Starting Claude Code with GLM-4.7 (Standard Model)..."
+echo "🚀 Starting Claude Code with GLM-5.1 (Standard Model)..."
 echo "📁 Config directory: \$CLAUDE_HOME"
 echo ""
 
@@ -1028,7 +1038,7 @@ main() {
                 if [ -n "$ZAI_API_KEY" ]; then
                     create_claude_glm_wrapper
                     create_claude_glm_fast_wrapper
-                    echo "✅ GLM models updated to GLM-4.7!"
+                    echo "✅ GLM models updated to GLM-5.1!"
                 fi
                 if [ -n "$MINIMAX_API_KEY" ]; then
                     create_claude_minimax_wrapper
@@ -1045,7 +1055,7 @@ main() {
                 ;;
             2)
                 echo "Choose provider to update:"
-                echo "1) Z.AI GLM (GLM-4.7, GLM-4.5-Air)"
+                echo "1) Z.AI GLM (GLM-5.1, GLM-4.5-Air)"
                 echo "2) MiniMax (MiniMax-M2)"
                 echo "3) DeepSeek (deepseek-chat)"
                 read -p "Provider (1-3): " provider_choice
@@ -1087,7 +1097,7 @@ main() {
     # Get API keys
     echo ""
     echo "Choose which providers to install:"
-    echo "1) Z.AI GLM only (GLM-4.7, GLM-4.5-Air)"
+    echo "1) Z.AI GLM only (GLM-5.1, GLM-4.5-Air)"
     echo "2) MiniMax only (MiniMax-M2)"
     echo "3) DeepSeek only (deepseek-chat)"
     echo "4) All three providers"
@@ -1185,7 +1195,7 @@ main() {
     echo "Commands:"
     
     if [ "$provider_choice" = "1" ] || [ "$provider_choice" = "4" ] || [ "$provider_choice" = "5" ]; then
-        echo "   claude-glm      - GLM-4.7 (latest)"
+        echo "   claude-glm      - GLM-5.1 (latest)"
         echo "   claude-glm-fast - GLM-4.5-Air (fast)"
     fi
     
@@ -1202,7 +1212,7 @@ main() {
     echo "   cc    - claude (regular Claude)"
     
     if [ "$provider_choice" = "1" ] || [ "$provider_choice" = "4" ] || [ "$provider_choice" = "5" ]; then
-        echo "   ccg   - claude-glm (GLM-4.7)"
+        echo "   ccg   - claude-glm (GLM-5.1)"
         echo "   ccf   - claude-glm-fast"
     fi
     

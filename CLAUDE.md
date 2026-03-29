@@ -22,6 +22,8 @@ Both installers perform identical logical operations with platform-specific synt
   - Generates bash/PowerShell wrapper scripts dynamically
   - Manages API keys in `~/.claude-providers-hub/state.json`
   - Provides a fallback embedded YAML config if files don't exist
+  - CLI commands: `list`, `get-default-model`, `wrapper-bash`, `export-bash`, `export-powershell`, `save-key`
+- `lib/providers.yaml` - Source YAML template (copied to `~/.claude-providers-hub/providers.yaml` on first install)
 
 ### Installation Method Enforcement
 - `bin/preinstall.js` - Blocks all installation methods except `npx`
@@ -57,11 +59,14 @@ npx github:bioodev/claude-code-providers-hub --help
 # List all providers
 node lib/config-loader.js list
 
+# Get the default (first) model ID for a provider
+node lib/config-loader.js get-default-model glm
+
 # Export bash variables for a provider/model
-node lib/config-loader.js export-bash glm glm-47 your-api-key
+node lib/config-loader.js export-bash glm glm-51 your-api-key
 
 # Generate wrapper script content
-node lib/config-loader.js wrapper-bash glm glm-47 your-api-key
+node lib/config-loader.js wrapper-bash glm glm-51 your-api-key
 ```
 
 ### Development workflow
@@ -78,7 +83,8 @@ bin/
 └── preinstall.js    # Installation method validator (npx-only enforcement)
 
 lib/
-└── config-loader.js # YAML config parser, wrapper generator, state management
+├── config-loader.js # YAML config parser, wrapper generator, state management
+└── providers.yaml   # Source provider/model definitions (template for user config)
 
 install.sh           # Unix/Linux/macOS installer (bash)
 install.ps1          # Windows installer (PowerShell)
@@ -98,14 +104,26 @@ User state is maintained in `~/.claude-providers-hub/`:
 - **npx-only design** - The package intentionally blocks `npm install` to ensure users always get the latest version
 - **Wrapper scripts are the output** - The main "product" is the generated wrapper scripts, not a running service
 
-## Adding a New Provider
+## Adding or Updating Models
 
-To add a new AI provider:
+### Updating the primary model for an existing provider (e.g. GLM-5.1 → GLM-5.2)
 
-1. Add provider definition to the embedded YAML in `lib/config-loader.js` (DEFAULT_YAML constant)
-2. Follow the existing structure with: `name`, `description`, `base_url`, `config_dir`, `models`
+1. Edit `lib/providers.yaml` — rename the model key (e.g. `glm-51` → `glm-52`) and update its `name` and `env.ANTHROPIC_MODEL`
+2. Edit `lib/config-loader.js` — apply the same change to the `DEFAULT_YAML` constant
+3. **No changes needed in `install.sh`** — the installer reads the first model key dynamically via `get-default-model`
+4. Update the fallback hardcoded template in `install.sh` (the `cat > "$wrapper_path" << EOF` block in `create_claude_glm_wrapper`) and `install.ps1` (`New-ClaudeGlmWrapper`) to keep them in sync
+
+### Adding a new AI provider
+
+1. Add provider definition to `lib/providers.yaml` and the `DEFAULT_YAML` in `lib/config-loader.js`
+2. Follow the existing structure: `name`, `description`, `base_url`, `config_dir`, `models`
 3. Update both `install.sh` and `install.ps1` to include the new provider in interactive menus
-4. Add wrapper script generation logic to both installers
+4. Add a `create_claude_<provider>_wrapper` function to `install.sh` using the dynamic lookup pattern:
+   ```bash
+   model_id=$(node "$CONFIG_LOADER" get-default-model "<provider>" 2>/dev/null)
+   node "$CONFIG_LOADER" wrapper-bash "<provider>" "$model_id" "$API_KEY" > "$wrapper_path"
+   ```
+5. Add the equivalent `New-Claude<Provider>Wrapper` function to `install.ps1`
 
 ## Error Reporting
 

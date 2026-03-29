@@ -73,13 +73,13 @@ function Get-ProviderVars {
         "glm" {
             $script:BaseUrl = "https://api.z.ai/api/anthropic"
             switch ($Model) {
-                "glm-47" {
-                    $script:ModelName = "glm-4.7"
+                "glm-51" {
+                    $script:ModelName = "glm-5.1"
                     $script:ConfigDir = $GlmConfigDir
-                    $script:ANTHROPIC_MODEL = "glm-4.7"
+                    $script:ANTHROPIC_MODEL = "glm-5.1"
                     $script:ANTHROPIC_SMALL_FAST_MODEL = "glm-4.5-air"
-                    $script:ANTHROPIC_DEFAULT_OPUS_MODEL = "glm-4.7"
-                    $script:ANTHROPIC_DEFAULT_SONNET_MODEL = "glm-4.7"
+                    $script:ANTHROPIC_DEFAULT_OPUS_MODEL = "glm-5.1"
+                    $script:ANTHROPIC_DEFAULT_SONNET_MODEL = "glm-5.1"
                     $script:ANTHROPIC_DEFAULT_HAIKU_MODEL = "glm-4.5-air"
                 }
                 "glm-fast" {
@@ -305,19 +305,22 @@ Set-Alias ccd ccd
     Write-Host "OK: Added aliases to PowerShell profile: $PROFILE"
 }
 
-# Create the GLM-4.7 wrapper
+# Create the GLM-5.1 wrapper
 function New-ClaudeGlmWrapper {
     $wrapperPath = Join-Path $UserBinDir "claude-glm.ps1"
 
     # Build wrapper content using array and join to avoid nested here-strings
     $wrapperContent = @(
-        '# Claude-GLM - Claude Code with Z.AI GLM-4.7 (Standard Model)',
+        '# Claude-GLM - Claude Code with Z.AI GLM-5.1 (Standard Model)',
         '',
         '# Set Z.AI environment variables',
         '$env:ANTHROPIC_BASE_URL = "https://api.z.ai/api/anthropic"',
         "`$env:ANTHROPIC_AUTH_TOKEN = `"$ZaiApiKey`"",
-        '$env:ANTHROPIC_MODEL = "glm-4.7"',
+        '$env:ANTHROPIC_MODEL = "glm-5.1"',
         '$env:ANTHROPIC_SMALL_FAST_MODEL = "glm-4.5-air"',
+        '$env:ANTHROPIC_DEFAULT_OPUS_MODEL = "glm-5.1"',
+        '$env:ANTHROPIC_DEFAULT_SONNET_MODEL = "glm-5.1"',
+        '$env:ANTHROPIC_DEFAULT_HAIKU_MODEL = "glm-4.5-air"',
         '',
         '# Use custom config directory to avoid conflicts',
         "`$env:CLAUDE_HOME = `"$GlmConfigDir`"",
@@ -328,11 +331,11 @@ function New-ClaudeGlmWrapper {
         '}',
         '',
         '# Create/update settings file with GLM configuration',
-        '$settingsJson = "{`"env`":{`"ANTHROPIC_BASE_URL`":`"https://api.z.ai/api/anthropic`",`"ANTHROPIC_AUTH_TOKEN`":`"' + $ZaiApiKey + '`",`"ANTHROPIC_MODEL`":`"glm-4.7`",`"ANTHROPIC_SMALL_FAST_MODEL`":`"glm-4.5-air`"}}"',
+        '$settingsJson = "{`"env`":{`"ANTHROPIC_BASE_URL`":`"https://api.z.ai/api/anthropic`",`"ANTHROPIC_AUTH_TOKEN`":`"' + $ZaiApiKey + '`",`"ANTHROPIC_MODEL`":`"glm-5.1`",`"ANTHROPIC_SMALL_FAST_MODEL`":`"glm-4.5-air`",`"ANTHROPIC_DEFAULT_OPUS_MODEL`":`"glm-5.1`",`"ANTHROPIC_DEFAULT_SONNET_MODEL`":`"glm-5.1`",`"ANTHROPIC_DEFAULT_HAIKU_MODEL`":`"glm-4.5-air`"}}"',
         'Set-Content -Path (Join-Path $env:CLAUDE_HOME "settings.json") -Value $settingsJson',
         '',
         '# Launch Claude Code with custom config',
-        'Write-Host "LAUNCH: Starting Claude Code with GLM-4.7 (Standard Model)..."',
+        'Write-Host "LAUNCH: Starting Claude Code with GLM-5.1 (Standard Model)..."',
         'Write-Host "CONFIG: Config directory: $env:CLAUDE_HOME"',
         'Write-Host ""',
         '',
@@ -981,7 +984,7 @@ function Install-ClaudeGlm {
                 if ($script:ZaiApiKey) {
                     New-ClaudeGlmWrapper
                     New-ClaudeGlmFastWrapper
-                    Write-Host "OK: GLM models updated to GLM-4.7!"
+                    Write-Host "OK: GLM models updated to GLM-5.1!"
                 }
                 if ($script:MiniMaxApiKey) {
                     New-ClaudeMiniMaxWrapper
@@ -998,7 +1001,7 @@ function Install-ClaudeGlm {
             }
             "2" {
                 Write-Host "Choose provider to update:"
-                Write-Host "1. Z.AI GLM (GLM-4.7, GLM-4.5-Air)"
+                Write-Host "1. Z.AI GLM (GLM-5.1, GLM-4.5-Air)"
                 Write-Host "2. MiniMax (MiniMax-M2)"
                 $providerChoice = Read-Host "Provider (1-2)"
 
@@ -1033,7 +1036,7 @@ function Install-ClaudeGlm {
     # Get API keys
     Write-Host ""
     Write-Host "Choose which providers to install:"
-    Write-Host "1. Z.AI GLM only (GLM-4.7, GLM-4.5-Air)"
+    Write-Host "1. Z.AI GLM only (GLM-5.1, GLM-4.5-Air)"
     Write-Host "2. MiniMax only (MiniMax-M2)"
     Write-Host "3. DeepSeek only (deepseek-chat)"
     Write-Host "4. All three providers"
@@ -1130,7 +1133,7 @@ function Install-ClaudeGlm {
     Write-Host "Commands:"
 
     if ($providerChoice -eq "1" -or $providerChoice -eq "4" -or $providerChoice -eq "5") {
-        Write-Host "   claude-glm      - GLM-4.7 (latest)"
+        Write-Host "   claude-glm      - GLM-5.1 (latest)"
         Write-Host "   claude-glm-fast - GLM-4.5-Air (fast)"
     }
 
@@ -1147,7 +1150,7 @@ function Install-ClaudeGlm {
     Write-Host "   cc    - claude (regular Claude)"
 
     if ($providerChoice -eq "1" -or $providerChoice -eq "4" -or $providerChoice -eq "5") {
-        Write-Host "   ccg   - claude-glm (GLM-4.7)"
+        Write-Host "   ccg   - claude-glm (GLM-5.1)"
         Write-Host "   ccf   - claude-glm-fast"
     }
 
