@@ -76,8 +76,6 @@ function Get-ProviderVars {
                 "glm-51" {
                     $script:ModelName = "glm-5.1"
                     $script:ConfigDir = $GlmConfigDir
-                    $script:ANTHROPIC_MODEL = "glm-5.1"
-                    $script:ANTHROPIC_SMALL_FAST_MODEL = "glm-4.5-air"
                     $script:ANTHROPIC_DEFAULT_OPUS_MODEL = "glm-5.1"
                     $script:ANTHROPIC_DEFAULT_SONNET_MODEL = "glm-5.1"
                     $script:ANTHROPIC_DEFAULT_HAIKU_MODEL = "glm-4.5-air"
@@ -85,8 +83,6 @@ function Get-ProviderVars {
                 "glm-fast" {
                     $script:ModelName = "glm-4.5-air"
                     $script:ConfigDir = $GlmFastConfigDir
-                    $script:ANTHROPIC_MODEL = "glm-4.5-air"
-                    $script:ANTHROPIC_SMALL_FAST_MODEL = "glm-4.5-air"
                     $script:ANTHROPIC_DEFAULT_OPUS_MODEL = "glm-4.5-air"
                     $script:ANTHROPIC_DEFAULT_SONNET_MODEL = "glm-4.5-air"
                     $script:ANTHROPIC_DEFAULT_HAIKU_MODEL = "glm-4.5-air"
@@ -97,8 +93,6 @@ function Get-ProviderVars {
             $script:BaseUrl = "https://api.deepseek.com/anthropic"
             $script:ModelName = "deepseek-chat"
             $script:ConfigDir = $DeepSeekConfigDir
-            $script:ANTHROPIC_MODEL = "deepseek-chat"
-            $script:ANTHROPIC_SMALL_FAST_MODEL = "deepseek-chat"
             $script:ANTHROPIC_DEFAULT_OPUS_MODEL = "deepseek-chat"
             $script:ANTHROPIC_DEFAULT_SONNET_MODEL = "deepseek-chat"
             $script:ANTHROPIC_DEFAULT_HAIKU_MODEL = "deepseek-chat"
@@ -109,8 +103,6 @@ function Get-ProviderVars {
             $script:BaseUrl = "https://api.minimax.io/anthropic"
             $script:ModelName = "MiniMax-M2"
             $script:ConfigDir = $MiniMaxConfigDir
-            $script:ANTHROPIC_MODEL = "MiniMax-M2"
-            $script:ANTHROPIC_SMALL_FAST_MODEL = "MiniMax-M2"
             $script:ANTHROPIC_DEFAULT_SONNET_MODEL = "MiniMax-M2"
             $script:ANTHROPIC_DEFAULT_OPUS_MODEL = "MiniMax-M2"
             $script:ANTHROPIC_DEFAULT_HAIKU_MODEL = "MiniMax-M2"
@@ -316,8 +308,6 @@ function New-ClaudeGlmWrapper {
         '# Set Z.AI environment variables',
         '$env:ANTHROPIC_BASE_URL = "https://api.z.ai/api/anthropic"',
         "`$env:ANTHROPIC_AUTH_TOKEN = `"$ZaiApiKey`"",
-        '$env:ANTHROPIC_MODEL = "glm-5.1"',
-        '$env:ANTHROPIC_SMALL_FAST_MODEL = "glm-4.5-air"',
         '$env:ANTHROPIC_DEFAULT_OPUS_MODEL = "glm-5.1"',
         '$env:ANTHROPIC_DEFAULT_SONNET_MODEL = "glm-5.1"',
         '$env:ANTHROPIC_DEFAULT_HAIKU_MODEL = "glm-4.5-air"',
@@ -331,7 +321,7 @@ function New-ClaudeGlmWrapper {
         '}',
         '',
         '# Create/update settings file with GLM configuration',
-        '$settingsJson = "{`"env`":{`"ANTHROPIC_BASE_URL`":`"https://api.z.ai/api/anthropic`",`"ANTHROPIC_AUTH_TOKEN`":`"' + $ZaiApiKey + '`",`"ANTHROPIC_MODEL`":`"glm-5.1`",`"ANTHROPIC_SMALL_FAST_MODEL`":`"glm-4.5-air`",`"ANTHROPIC_DEFAULT_OPUS_MODEL`":`"glm-5.1`",`"ANTHROPIC_DEFAULT_SONNET_MODEL`":`"glm-5.1`",`"ANTHROPIC_DEFAULT_HAIKU_MODEL`":`"glm-4.5-air`"}}"',
+        '$settingsJson = "{`"env`":{`"ANTHROPIC_BASE_URL`":`"https://api.z.ai/api/anthropic`",`"ANTHROPIC_AUTH_TOKEN`":`"' + $ZaiApiKey + '`",`"ANTHROPIC_DEFAULT_OPUS_MODEL`":`"glm-5.1`",`"ANTHROPIC_DEFAULT_SONNET_MODEL`":`"glm-5.1`",`"ANTHROPIC_DEFAULT_HAIKU_MODEL`":`"glm-4.5-air`"}}"',
         'Set-Content -Path (Join-Path $env:CLAUDE_HOME "settings.json") -Value $settingsJson',
         '',
         '# Launch Claude Code with custom config',
@@ -365,8 +355,6 @@ function New-ClaudeGlmFastWrapper {
         '# Set Z.AI environment variables',
         '$env:ANTHROPIC_BASE_URL = "https://api.z.ai/api/anthropic"',
         "`$env:ANTHROPIC_AUTH_TOKEN = `"$ZaiApiKey`"",
-        '$env:ANTHROPIC_MODEL = "glm-4.5-air"',
-        '$env:ANTHROPIC_SMALL_FAST_MODEL = "glm-4.5-air"',
         '',
         '# Use custom config directory to avoid conflicts',
         "`$env:CLAUDE_HOME = `"$GlmFastConfigDir`"",
@@ -377,7 +365,7 @@ function New-ClaudeGlmFastWrapper {
         '}',
         '',
         '# Create/update settings file with GLM-Air configuration',
-        '$settingsJson = "{`"env`":{`"ANTHROPIC_BASE_URL`":`"https://api.z.ai/api/anthropic`",`"ANTHROPIC_AUTH_TOKEN`":`"' + $ZaiApiKey + '`",`"ANTHROPIC_MODEL`":`"glm-4.5-air`",`"ANTHROPIC_SMALL_FAST_MODEL`":`"glm-4.5-air`"}}"',
+        '$settingsJson = "{`"env`":{`"ANTHROPIC_BASE_URL`":`"https://api.z.ai/api/anthropic`",`"ANTHROPIC_AUTH_TOKEN`":`"' + $ZaiApiKey + '`",`"ANTHROPIC_DEFAULT_OPUS_MODEL`":`"glm-4.5-air`",`"ANTHROPIC_DEFAULT_SONNET_MODEL`":`"glm-4.5-air`",`"ANTHROPIC_DEFAULT_HAIKU_MODEL`":`"glm-4.5-air`"}}"',
         'Set-Content -Path (Join-Path $env:CLAUDE_HOME "settings.json") -Value $settingsJson',
         '',
         '# Launch Claude Code with custom config',
@@ -411,8 +399,6 @@ function New-ClaudeMiniMaxWrapper {
         '# Set MiniMax environment variables',
         '$env:ANTHROPIC_BASE_URL = "https://api.minimax.io/anthropic"',
         "`$env:ANTHROPIC_AUTH_TOKEN = `"$MiniMaxApiKey`"",
-        '$env:ANTHROPIC_MODEL = "MiniMax-M2"',
-        '$env:ANTHROPIC_SMALL_FAST_MODEL = "MiniMax-M2"',
         '$env:ANTHROPIC_DEFAULT_SONNET_MODEL = "MiniMax-M2"',
         '$env:ANTHROPIC_DEFAULT_OPUS_MODEL = "MiniMax-M2"',
         '$env:ANTHROPIC_DEFAULT_HAIKU_MODEL = "MiniMax-M2"',
@@ -428,7 +414,7 @@ function New-ClaudeMiniMaxWrapper {
         '}',
         '',
         '# Create/update settings file with MiniMax configuration',
-        '$settingsJson = "{`"env`":{`"ANTHROPIC_BASE_URL`":`"https://api.minimax.io/anthropic`",`"ANTHROPIC_AUTH_TOKEN`":`"' + $MiniMaxApiKey + '`",`"API_TIMEOUT_MS`":`"3000000`",`"CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC`":1,`"ANTHROPIC_MODEL`":`"MiniMax-M2`",`"ANTHROPIC_SMALL_FAST_MODEL`":`"MiniMax-M2`",`"ANTHROPIC_DEFAULT_SONNET_MODEL`":`"MiniMax-M2`",`"ANTHROPIC_DEFAULT_OPUS_MODEL`":`"MiniMax-M2`",`"ANTHROPIC_DEFAULT_HAIKU_MODEL`":`"MiniMax-M2`"}}"',
+        '$settingsJson = "{`"env`":{`"ANTHROPIC_BASE_URL`":`"https://api.minimax.io/anthropic`",`"ANTHROPIC_AUTH_TOKEN`":`"' + $MiniMaxApiKey + '`",`"API_TIMEOUT_MS`":`"3000000`",`"CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC`":1,`"ANTHROPIC_DEFAULT_SONNET_MODEL`":`"MiniMax-M2`",`"ANTHROPIC_DEFAULT_OPUS_MODEL`":`"MiniMax-M2`",`"ANTHROPIC_DEFAULT_HAIKU_MODEL`":`"MiniMax-M2`"}}"',
         'Set-Content -Path (Join-Path $env:CLAUDE_HOME "settings.json") -Value $settingsJson',
         '',
         '# Launch Claude Code with custom config',
@@ -462,8 +448,6 @@ function New-ClaudeDeepSeekWrapper {
         '# Set DeepSeek environment variables',
         '$env:ANTHROPIC_BASE_URL = "https://api.deepseek.com/anthropic"',
         "`$env:ANTHROPIC_AUTH_TOKEN = `"$DeepSeekApiKey`"",
-        '$env:ANTHROPIC_MODEL = "deepseek-chat"',
-        '$env:ANTHROPIC_SMALL_FAST_MODEL = "deepseek-chat"',
         '$env:API_TIMEOUT_MS = "600000"',
         '$env:CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC = "1"',
         '',
@@ -476,7 +460,7 @@ function New-ClaudeDeepSeekWrapper {
         '}',
         '',
         '# Create/update settings file with DeepSeek configuration',
-        '$settingsJson = "{`"env`":{`"ANTHROPIC_BASE_URL`":`"https://api.deepseek.com/anthropic`",`"ANTHROPIC_AUTH_TOKEN`":`"' + $DeepSeekApiKey + '`",`"API_TIMEOUT_MS`":`"600000`",`"ANTHROPIC_MODEL`":`"deepseek-chat`",`"ANTHROPIC_SMALL_FAST_MODEL`":`"deepseek-chat`",`"CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC`":1}}"',
+        '$settingsJson = "{`"env`":{`"ANTHROPIC_BASE_URL`":`"https://api.deepseek.com/anthropic`",`"ANTHROPIC_AUTH_TOKEN`":`"' + $DeepSeekApiKey + '`",`"API_TIMEOUT_MS`":`"600000`",`"ANTHROPIC_DEFAULT_OPUS_MODEL`":`"deepseek-chat`",`"ANTHROPIC_DEFAULT_SONNET_MODEL`":`"deepseek-chat`",`"ANTHROPIC_DEFAULT_HAIKU_MODEL`":`"deepseek-chat`",`"CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC`":1}}"',
         'Set-Content -Path (Join-Path $env:CLAUDE_HOME "settings.json") -Value $settingsJson',
         '',
         '# Launch Claude Code with custom config',

@@ -82,8 +82,6 @@ load_provider_vars() {
                     BASE_URL="https://api.z.ai/api/anthropic"
                     MODEL_NAME="glm-5.1"
                     CONFIG_DIR="$HOME/.claude-glm"
-                    ANTHROPIC_MODEL="glm-5.1"
-                    ANTHROPIC_SMALL_FAST_MODEL="glm-4.5-air"
                     ANTHROPIC_DEFAULT_OPUS_MODEL="glm-5.1"
                     ANTHROPIC_DEFAULT_SONNET_MODEL="glm-5.1"
                     ANTHROPIC_DEFAULT_HAIKU_MODEL="glm-4.5-air"
@@ -92,8 +90,6 @@ load_provider_vars() {
                     BASE_URL="https://api.z.ai/api/anthropic"
                     MODEL_NAME="glm-4.5-air"
                     CONFIG_DIR="$HOME/.claude-glm-fast"
-                    ANTHROPIC_MODEL="glm-4.5-air"
-                    ANTHROPIC_SMALL_FAST_MODEL="glm-4.5-air"
                     ANTHROPIC_DEFAULT_OPUS_MODEL="glm-4.5-air"
                     ANTHROPIC_DEFAULT_SONNET_MODEL="glm-4.5-air"
                     ANTHROPIC_DEFAULT_HAIKU_MODEL="glm-4.5-air"
@@ -104,8 +100,6 @@ load_provider_vars() {
             BASE_URL="https://api.deepseek.com/anthropic"
             MODEL_NAME="deepseek-chat"
             CONFIG_DIR="$HOME/.claude-deepseek"
-            ANTHROPIC_MODEL="deepseek-chat"
-            ANTHROPIC_SMALL_FAST_MODEL="deepseek-chat"
             ANTHROPIC_DEFAULT_OPUS_MODEL="deepseek-chat"
             ANTHROPIC_DEFAULT_SONNET_MODEL="deepseek-chat"
             ANTHROPIC_DEFAULT_HAIKU_MODEL="deepseek-chat"
@@ -116,8 +110,6 @@ load_provider_vars() {
             BASE_URL="https://api.minimax.io/anthropic"
             MODEL_NAME="MiniMax-M2"
             CONFIG_DIR="$HOME/.claude-minimax"
-            ANTHROPIC_MODEL="MiniMax-M2"
-            ANTHROPIC_SMALL_FAST_MODEL="MiniMax-M2"
             ANTHROPIC_DEFAULT_SONNET_MODEL="MiniMax-M2"
             ANTHROPIC_DEFAULT_OPUS_MODEL="MiniMax-M2"
             ANTHROPIC_DEFAULT_HAIKU_MODEL="MiniMax-M2"
@@ -441,8 +433,6 @@ create_claude_glm_wrapper() {
 # Set Z.AI environment variables
 export ANTHROPIC_BASE_URL="https://api.z.ai/api/anthropic"
 export ANTHROPIC_AUTH_TOKEN="$ZAI_API_KEY"
-export ANTHROPIC_MODEL="glm-5.1"
-export ANTHROPIC_SMALL_FAST_MODEL="glm-4.5-air"
 export ANTHROPIC_DEFAULT_OPUS_MODEL="glm-5.1"
 export ANTHROPIC_DEFAULT_SONNET_MODEL="glm-5.1"
 export ANTHROPIC_DEFAULT_HAIKU_MODEL="glm-4.5-air"
@@ -459,8 +449,6 @@ cat > "\$CLAUDE_HOME/settings.json" << SETTINGS
   "env": {
     "ANTHROPIC_BASE_URL": "https://api.z.ai/api/anthropic",
     "ANTHROPIC_AUTH_TOKEN": "$ZAI_API_KEY",
-    "ANTHROPIC_MODEL": "glm-5.1",
-    "ANTHROPIC_SMALL_FAST_MODEL": "glm-4.5-air",
     "ANTHROPIC_DEFAULT_OPUS_MODEL": "glm-5.1",
     "ANTHROPIC_DEFAULT_SONNET_MODEL": "glm-5.1",
     "ANTHROPIC_DEFAULT_HAIKU_MODEL": "glm-4.5-air"
@@ -510,8 +498,9 @@ create_claude_glm_fast_wrapper() {
 # Set Z.AI environment variables
 export ANTHROPIC_BASE_URL="https://api.z.ai/api/anthropic"
 export ANTHROPIC_AUTH_TOKEN="$ZAI_API_KEY"
-export ANTHROPIC_MODEL="glm-4.5-air"
-export ANTHROPIC_SMALL_FAST_MODEL="glm-4.5-air"
+export ANTHROPIC_DEFAULT_OPUS_MODEL="glm-4.5-air"
+export ANTHROPIC_DEFAULT_SONNET_MODEL="glm-4.5-air"
+export ANTHROPIC_DEFAULT_HAIKU_MODEL="glm-4.5-air"
 
 # Use custom config directory to avoid conflicts
 export CLAUDE_HOME="\$HOME/.claude-glm-fast"
@@ -525,8 +514,9 @@ cat > "\$CLAUDE_HOME/settings.json" << SETTINGS
   "env": {
     "ANTHROPIC_BASE_URL": "https://api.z.ai/api/anthropic",
     "ANTHROPIC_AUTH_TOKEN": "$ZAI_API_KEY",
-    "ANTHROPIC_MODEL": "glm-4.5-air",
-    "ANTHROPIC_SMALL_FAST_MODEL": "glm-4.5-air"
+    "ANTHROPIC_DEFAULT_OPUS_MODEL": "glm-4.5-air",
+    "ANTHROPIC_DEFAULT_SONNET_MODEL": "glm-4.5-air",
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "glm-4.5-air"
   }
 }
 SETTINGS
@@ -562,8 +552,6 @@ create_claude_anthropic_wrapper() {
 # Clear any Z.AI environment variables
 unset ANTHROPIC_BASE_URL
 unset ANTHROPIC_AUTH_TOKEN
-unset ANTHROPIC_MODEL
-unset ANTHROPIC_SMALL_FAST_MODEL
 
 # Use default Claude config directory
 unset CLAUDE_HOME
@@ -608,8 +596,6 @@ create_claude_minimax_wrapper() {
 # Set MiniMax environment variables
 export ANTHROPIC_BASE_URL="https://api.minimax.io/anthropic"
 export ANTHROPIC_AUTH_TOKEN="$MINIMAX_API_KEY"
-export ANTHROPIC_MODEL="MiniMax-M2"
-export ANTHROPIC_SMALL_FAST_MODEL="MiniMax-M2"
 export ANTHROPIC_DEFAULT_SONNET_MODEL="MiniMax-M2"
 export ANTHROPIC_DEFAULT_OPUS_MODEL="MiniMax-M2"
 export ANTHROPIC_DEFAULT_HAIKU_MODEL="MiniMax-M2"
@@ -630,8 +616,6 @@ cat > "\$CLAUDE_HOME/settings.json" << SETTINGS
     "ANTHROPIC_AUTH_TOKEN": "$MINIMAX_API_KEY",
     "API_TIMEOUT_MS": "3000000",
     "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": 1,
-    "ANTHROPIC_MODEL": "MiniMax-M2",
-    "ANTHROPIC_SMALL_FAST_MODEL": "MiniMax-M2",
     "ANTHROPIC_DEFAULT_SONNET_MODEL": "MiniMax-M2",
     "ANTHROPIC_DEFAULT_OPUS_MODEL": "MiniMax-M2",
     "ANTHROPIC_DEFAULT_HAIKU_MODEL": "MiniMax-M2"
@@ -681,8 +665,6 @@ create_claude_deepseek_wrapper() {
 # Set DeepSeek environment variables
 export ANTHROPIC_BASE_URL="https://api.deepseek.com/anthropic"
 export ANTHROPIC_AUTH_TOKEN="$DEEPSEEK_API_KEY"
-export ANTHROPIC_MODEL="deepseek-chat"
-export ANTHROPIC_SMALL_FAST_MODEL="deepseek-chat"
 export API_TIMEOUT_MS="600000"
 export CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC="1"
 
@@ -699,8 +681,9 @@ cat > "\$CLAUDE_HOME/settings.json" << SETTINGS
     "ANTHROPIC_BASE_URL": "https://api.deepseek.com/anthropic",
     "ANTHROPIC_AUTH_TOKEN": "$DEEPSEEK_API_KEY",
     "API_TIMEOUT_MS": "600000",
-    "ANTHROPIC_MODEL": "deepseek-chat",
-    "ANTHROPIC_SMALL_FAST_MODEL": "deepseek-chat",
+    "ANTHROPIC_DEFAULT_OPUS_MODEL": "deepseek-chat",
+    "ANTHROPIC_DEFAULT_SONNET_MODEL": "deepseek-chat",
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "deepseek-chat",
     "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": 1
   }
 }

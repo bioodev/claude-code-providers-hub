@@ -98,7 +98,9 @@ Cada comando es un pequeño script wrapper que configura variables de entorno an
 |----------|-----------|
 | `ANTHROPIC_BASE_URL` | Apunta al endpoint API del proveedor |
 | `ANTHROPIC_AUTH_TOKEN` | Tu clave API del proveedor |
-| `ANTHROPIC_MODEL` | Modelo principal a usar |
+| `ANTHROPIC_DEFAULT_SONNET_MODEL` | Mapeo del modelo tier Sonnet |
+| `ANTHROPIC_DEFAULT_OPUS_MODEL` | Mapeo del modelo tier Opus |
+| `ANTHROPIC_DEFAULT_HAIKU_MODEL` | Mapeo del modelo tier Haiku (rápido) |
 | `CLAUDE_HOME` | Directorio de configuración aislado para este proveedor |
 
 Los directorios de configuración se mantienen separados para que los historiales y ajustes nunca se mezclen:

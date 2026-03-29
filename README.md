@@ -98,7 +98,9 @@ Each command is a small wrapper script that sets environment variables before la
 |----------|---------|
 | `ANTHROPIC_BASE_URL` | Points to the provider's API endpoint |
 | `ANTHROPIC_AUTH_TOKEN` | Your provider API key |
-| `ANTHROPIC_MODEL` | Primary model to use |
+| `ANTHROPIC_DEFAULT_SONNET_MODEL` | Default Sonnet-tier model mapping |
+| `ANTHROPIC_DEFAULT_OPUS_MODEL` | Default Opus-tier model mapping |
+| `ANTHROPIC_DEFAULT_HAIKU_MODEL` | Default Haiku-tier (fast) model mapping |
 | `CLAUDE_HOME` | Isolated config directory for this provider |
 
 Config directories are kept separate so chat histories and settings never mix:
