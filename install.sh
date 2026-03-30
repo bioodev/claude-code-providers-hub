@@ -14,6 +14,7 @@
 # Parse command-line arguments
 TEST_ERROR=false
 DEBUG=false
+UNINSTALL=false
 
 for arg in "$@"; do
     case $arg in
@@ -23,6 +24,10 @@ for arg in "$@"; do
             ;;
         --debug)
             DEBUG=true
+            shift
+            ;;
+        --uninstall)
+            UNINSTALL=true
             shift
             ;;
         *)
@@ -47,7 +52,6 @@ CONFIG_LOADER="$(dirname "$0")/lib/config-loader.js"
 
 # Legacy config directories (for backward compatibility)
 GLM_CONFIG_DIR="$HOME/.claude-glm"
-GLM_45_CONFIG_DIR="$HOME/.claude-glm-45"
 GLM_FAST_CONFIG_DIR="$HOME/.claude-glm-fast"
 MINIMAX_CONFIG_DIR="$HOME/.claude-minimax"
 DEEPSEEK_CONFIG_DIR="$HOME/.claude-deepseek"
@@ -420,6 +424,7 @@ create_claude_glm_wrapper() {
             if [ $? -eq 0 ]; then
                 chmod +x "$wrapper_path"
                 echo "✅ Installed claude-glm at $wrapper_path (from YAML config)"
+                [ -f "$CONFIG_LOADER" ] && node "$CONFIG_LOADER" record-wrapper "glm" "$model_id" "$wrapper_path" "$HOME/.claude-glm" "ccg" 2>/dev/null
                 return 0
             fi
         fi
@@ -474,6 +479,7 @@ EOF
 
     chmod +x "$wrapper_path"
     echo "✅ Installed claude-glm at $wrapper_path"
+    [ -f "$CONFIG_LOADER" ] && node "$CONFIG_LOADER" record-wrapper "glm" "glm-51" "$wrapper_path" "$HOME/.claude-glm" "ccg" 2>/dev/null
 }
 
 # Create the fast GLM-4.5-Air wrapper
@@ -486,6 +492,7 @@ create_claude_glm_fast_wrapper() {
         if [ $? -eq 0 ]; then
             chmod +x "$wrapper_path"
             echo "✅ Installed claude-glm-fast at $wrapper_path (from YAML config)"
+            [ -f "$CONFIG_LOADER" ] && node "$CONFIG_LOADER" record-wrapper "glm" "glm-fast" "$wrapper_path" "$HOME/.claude-glm-fast" "ccf" 2>/dev/null
             return 0
         fi
     fi
@@ -539,39 +546,7 @@ EOF
 
     chmod +x "$wrapper_path"
     echo "✅ Installed claude-glm-fast at $wrapper_path"
-}
-
-# Create the Anthropic wrapper
-create_claude_anthropic_wrapper() {
-    local wrapper_path="$USER_BIN_DIR/claude-anthropic"
-    
-    cat > "$wrapper_path" << 'EOF'
-#!/bin/bash
-# Claude-Anthropic - Claude Code with original Anthropic models
-
-# Clear any Z.AI environment variables
-unset ANTHROPIC_BASE_URL
-unset ANTHROPIC_AUTH_TOKEN
-
-# Use default Claude config directory
-unset CLAUDE_HOME
-
-echo "🚀 Starting Claude Code with Anthropic Claude models..."
-echo ""
-
-# Check if claude exists
-if ! command -v claude &> /dev/null; then
-    echo "❌ Error: 'claude' command not found!"
-    echo "Please ensure Claude Code is installed and in your PATH"
-    exit 1
-fi
-
-# Run the actual claude command
-claude "$@"
-EOF
-    
-    chmod +x "$wrapper_path"
-    echo "✅ Installed claude-anthropic at $wrapper_path"
+    [ -f "$CONFIG_LOADER" ] && node "$CONFIG_LOADER" record-wrapper "glm" "glm-fast" "$wrapper_path" "$HOME/.claude-glm-fast" "ccf" 2>/dev/null
 }
 
 # Create the MiniMax wrapper
@@ -584,6 +559,7 @@ create_claude_minimax_wrapper() {
         if [ $? -eq 0 ]; then
             chmod +x "$wrapper_path"
             echo "✅ Installed ccm at $wrapper_path (from YAML config)"
+            [ -f "$CONFIG_LOADER" ] && node "$CONFIG_LOADER" record-wrapper "minimax" "default" "$wrapper_path" "$HOME/.claude-minimax" "ccm" 2>/dev/null
             return 0
         fi
     fi
@@ -641,6 +617,7 @@ EOF
 
     chmod +x "$wrapper_path"
     echo "✅ Installed ccm at $wrapper_path"
+    [ -f "$CONFIG_LOADER" ] && node "$CONFIG_LOADER" record-wrapper "minimax" "default" "$wrapper_path" "$HOME/.claude-minimax" "ccm" 2>/dev/null
 }
 
 # Create the DeepSeek wrapper
@@ -653,6 +630,7 @@ create_claude_deepseek_wrapper() {
         if [ $? -eq 0 ]; then
             chmod +x "$wrapper_path"
             echo "✅ Installed ccd at $wrapper_path (from YAML config)"
+            [ -f "$CONFIG_LOADER" ] && node "$CONFIG_LOADER" record-wrapper "deepseek" "default" "$wrapper_path" "$HOME/.claude-deepseek" "ccd" 2>/dev/null
             return 0
         fi
     fi
@@ -707,6 +685,7 @@ EOF
 
     chmod +x "$wrapper_path"
     echo "✅ Installed ccd at $wrapper_path"
+    [ -f "$CONFIG_LOADER" ] && node "$CONFIG_LOADER" record-wrapper "deepseek" "default" "$wrapper_path" "$HOME/.claude-deepseek" "ccd" 2>/dev/null
 }
 
 # Clean up wrappers for providers not selected in this installation
@@ -897,6 +876,54 @@ remove_aliases_from_shell() {
     mv "$tmp_file" "$rc_file"
 }
 
+# Clean up orphaned wrappers from previous installs (providers/models no longer in config)
+cleanup_orphaned_wrappers() {
+    if [ ! -f "$CONFIG_LOADER" ]; then
+        return
+    fi
+
+    local orphans
+    orphans=$(node "$CONFIG_LOADER" find-orphans 2>/dev/null)
+
+    # Check if orphans is empty array or null
+    if [ -z "$orphans" ] || [ "$orphans" = "[]" ] || [ "$orphans" = "null" ]; then
+        return
+    fi
+
+    echo ""
+    echo "Found orphaned installations from previous versions:"
+    echo "$orphans" | node -p "JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).map(i => '  - ' + i.alias + ' (' + i.provider + '/' + i.model_id + ')').join('\n')" 2>/dev/null
+    echo ""
+
+    read -p "Remove orphaned installations? (y/N): " orphan_choice
+    if [ "$orphan_choice" = "y" ] || [ "$orphan_choice" = "Y" ]; then
+        # Remove wrapper files
+        echo "$orphans" | node -p "JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).map(i => i.wrapper_path).join('\n')" 2>/dev/null | while read wpath; do
+            [ -n "$wpath" ] && [ -f "$wpath" ] && rm -f "$wpath" && echo "  Removed wrapper: $wpath"
+        done
+
+        # Remove config directories
+        echo "$orphans" | node -p "JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).map(i => i.config_dir).join('\n')" 2>/dev/null | while read cpath; do
+            [ -n "$cpath" ] && [ -d "$cpath" ] && rm -rf "$cpath" && echo "  Removed config: $cpath"
+        done
+
+        # Remove aliases
+        local orphan_aliases
+        orphan_aliases=$(echo "$orphans" | node -p "JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).map(i => i.alias).filter(Boolean).join(' ')" 2>/dev/null)
+        if [ -n "$orphan_aliases" ]; then
+            remove_aliases_from_shell $orphan_aliases
+        fi
+
+        # Remove from state
+        echo "$orphans" | node -p "JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).map(i => i.provider + ' ' + i.model_id).join('\n')" 2>/dev/null | while read provider model; do
+            [ -n "$provider" ] && [ -n "$model" ] && node "$CONFIG_LOADER" remove-wrapper "$provider" "$model" 2>/dev/null
+        done
+
+        echo ""
+        echo "✅ Orphaned installations cleaned up."
+    fi
+}
+
 # Create shell aliases
 create_shell_aliases() {
     local rc_file=$(detect_shell_rc)
@@ -988,10 +1015,32 @@ main() {
     # Clean up old installations from different locations
     cleanup_old_wrappers
 
+    # Check if providers.yaml needs updating
+    if [ -f "$CONFIG_LOADER" ]; then
+        local config_status
+        config_status=$(node "$CONFIG_LOADER" check-config-version 2>/dev/null)
+        local needs_update
+        needs_update=$(echo "$config_status" | node -p "JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).needsUpdate" 2>/dev/null)
+        if [ "$needs_update" = "true" ]; then
+            echo ""
+            echo "⚠️  Your providers.yaml is outdated (new providers/models available)."
+            echo "1) Update providers.yaml (API keys in state.json are preserved)"
+            echo "2) Keep current"
+            read -p "Choice (1-2): " yaml_choice
+            if [ "$yaml_choice" = "1" ]; then
+                node "$CONFIG_LOADER" update-config 2>/dev/null
+                echo "✅ providers.yaml updated (backup saved as .bak)"
+            fi
+        fi
+    fi
+
     # Check if already installed
     if [ -f "$USER_BIN_DIR/claude-glm" ] || [ -f "$USER_BIN_DIR/claude-glm-fast" ] || [ -f "$USER_BIN_DIR/ccm" ] || [ -f "$USER_BIN_DIR/ccd" ]; then
         echo ""
         echo "✅ Existing installation detected!"
+
+        # Check for orphaned installations from previous versions
+        cleanup_orphaned_wrappers
         echo "1) Update models only (keep API keys)"
         echo "2) Update API key only"
         echo "3) Reinstall everything"
@@ -1293,6 +1342,97 @@ if [ "$TEST_ERROR" = true ]; then
     echo "Press Enter to finish (window will remain open)..."
     read
     # Script ends naturally here - terminal stays open
+    exit 0
+fi
+
+# Uninstall function
+run_uninstall() {
+    echo "🗑️  Uninstalling claude-code-providers-hub..."
+    echo ""
+
+    local wrappers_json=""
+    if [ -f "$CONFIG_LOADER" ]; then
+        wrappers_json=$(node "$CONFIG_LOADER" list-wrappers 2>/dev/null)
+    fi
+
+    # Remove wrapper scripts
+    local wrapper_files=("claude-glm" "claude-glm-fast" "ccm" "ccd")
+    local removed_count=0
+    for w in "${wrapper_files[@]}"; do
+        local wpath="$USER_BIN_DIR/$w"
+        if [ -f "$wpath" ]; then
+            rm -f "$wpath"
+            echo "  Removed wrapper: $wpath"
+            ((removed_count++))
+        fi
+    done
+
+    # Remove config directories (with confirmation - they contain chat history)
+    local config_dirs=("$HOME/.claude-glm" "$HOME/.claude-glm-fast" "$HOME/.claude-minimax" "$HOME/.claude-deepseek")
+    echo ""
+    read -p "Remove provider config directories (includes chat history)? (y/N): " rm_configs
+    if [ "$rm_configs" = "y" ] || [ "$rm_configs" = "Y" ]; then
+        for d in "${config_dirs[@]}"; do
+            if [ -d "$d" ]; then
+                rm -rf "$d"
+                echo "  Removed config: $d"
+            fi
+        done
+    else
+        echo "  Keeping config directories."
+    fi
+
+    # Remove shell aliases
+    local all_aliases="cc ccg ccf ccm ccd"
+    remove_aliases_from_shell $all_aliases 2>/dev/null
+    echo "  Removed shell aliases."
+
+    # Check if ~/.local/bin has other files; if empty, remove PATH entry
+    if [ -d "$USER_BIN_DIR" ]; then
+        local file_count
+        file_count=$(ls -1A "$USER_BIN_DIR" 2>/dev/null | wc -l)
+        if [ "$file_count" -eq 0 ]; then
+            echo ""
+            echo "  $USER_BIN_DIR is now empty."
+            read -p "Remove PATH entry from shell profile? (y/N): " rm_path
+            if [ "$rm_path" = "y" ] || [ "$rm_path" = "Y" ]; then
+                local rc_file=$(detect_shell_rc)
+                if [ -n "$rc_file" ] && [ -f "$rc_file" ]; then
+                    local tmp_file=$(mktemp)
+                    grep -v "export PATH=\"\$PATH:$USER_BIN_DIR\"" "$rc_file" > "$tmp_file"
+                    grep -v "setenv PATH \$PATH:$USER_BIN_DIR" "$tmp_file" > "$tmp_file.2"
+                    mv "$tmp_file.2" "$rc_file"
+                    rm -f "$tmp_file"
+                    echo "  Removed PATH entry from $rc_file"
+                fi
+            fi
+        fi
+    fi
+
+    # Remove ~/.claude-providers-hub/ (with confirmation)
+    echo ""
+    if [ -d "$PROVIDERS_HUB_DIR" ]; then
+        read -p "Remove $PROVIDERS_HUB_DIR (providers.yaml, state.json)? (y/N): " rm_hub
+        if [ "$rm_hub" = "y" ] || [ "$rm_hub" = "Y" ]; then
+            rm -rf "$PROVIDERS_HUB_DIR"
+            echo "  Removed: $PROVIDERS_HUB_DIR"
+        else
+            echo "  Keeping: $PROVIDERS_HUB_DIR"
+        fi
+    fi
+
+    # Clear wrapper records in state
+    if [ -f "$CONFIG_LOADER" ]; then
+        node "$CONFIG_LOADER" clear-wrappers 2>/dev/null
+    fi
+
+    echo ""
+    echo "✅ Uninstall complete."
+}
+
+# Handle --uninstall flag
+if [ "$UNINSTALL" = true ]; then
+    run_uninstall
     exit 0
 fi
 

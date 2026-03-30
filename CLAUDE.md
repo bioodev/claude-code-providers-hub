@@ -19,29 +19,58 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Platform-Specific Installer Pattern
 The project uses a **dual-platform installer architecture**:
-- `bin/cli.js` - CLI entry point: platform detection, routing, help/version/list commands (~188 lines)
-- `install.sh` - Bash installer for Unix/Linux/macOS (~1,323 lines)
-- `install.ps1` - PowerShell installer for Windows (~1,251 lines)
+- `bin/cli.js` - CLI entry point: platform detection, routing, help/version/list/uninstall commands (~256 lines)
+- `install.sh` - Bash installer for Unix/Linux/macOS (~1,415 lines)
+- `install.ps1` - PowerShell installer for Windows (~1,396 lines)
 - `install` - Universal bootstrap script (OS detection, delegates to install.sh/install.ps1; excluded from npm via `.npmignore`)
 
 Both installers perform identical logical operations with platform-specific syntax. They are the primary code and should be modified together when changing installation behavior.
 
 ### Reinstallation / Update Flow
-When existing wrappers are detected, the installer offers 4 options:
-1. **Update models only** - Extracts API keys from existing wrappers, regenerates wrappers with current model definitions from YAML config (preserves API keys)
-2. **Update API key only** - Lets user change the API key for a specific provider
-3. **Reinstall everything** - Full reinstall from scratch
-4. **Cancel**
+When existing wrappers are detected, the installer:
+1. Runs **orphan detection** — compares `state.json` `installed_wrappers` against current provider config, offers to clean up stale wrappers/configs/aliases
+2. Checks **providers.yaml version** — if `config_version` is outdated, offers to update from shipped defaults (with `.bak` backup)
+3. Presents 4 reinstall options:
+   - **Update models only** - Extracts API keys from existing wrappers, regenerates wrappers with current model definitions from YAML config (preserves API keys)
+   - **Update API key only** - Lets user change the API key for a specific provider
+   - **Reinstall everything** - Full reinstall from scratch
+   - **Cancel**
+
+### Uninstall
+The project supports clean uninstall via `npx ... uninstall`:
+- Removes all wrapper scripts from `~/.local/bin`
+- Optionally removes provider config directories (contains chat history, asks confirmation)
+- Removes shell aliases from `.bashrc`/`.zshrc`/PowerShell profile
+- Removes PATH entry from shell profile if `~/.local/bin` is empty
+- Optionally removes `~/.claude-providers-hub/` (providers.yaml, state.json)
 
 ### Configuration System
 - `lib/config-loader.js` (~519 lines) - YAML-based configuration engine that:
   - Parses provider configurations from `~/.claude-providers-hub/providers.yaml`
   - Generates bash/PowerShell wrapper scripts dynamically
   - Manages API keys in `~/.claude-providers-hub/state.json`
+  - Tracks installed wrappers in `state.json` `installed_wrappers` array (populated after each wrapper creation)
+  - Detects orphaned installations (wrappers for providers/models no longer in config)
+  - Checks `config_version` in providers.yaml against shipped defaults
   - Provides a fallback embedded YAML config (`DEFAULT_YAML` constant) if files don't exist
   - Includes a simple YAML parser (no external dependencies)
-  - CLI commands: `list`, `get-default-model`, `wrapper-bash`, `export-bash`, `export-powershell`, `save-key`
+  - CLI commands: `list`, `get-default-model`, `wrapper-bash`, `export-bash`, `export-powershell`, `save-key`, `record-wrapper`, `remove-wrapper`, `list-wrappers`, `find-orphans`, `clear-wrappers`, `check-config-version`, `update-config`
 - `lib/providers.yaml` - Source YAML template (copied to `~/.claude-providers-hub/providers.yaml` on first install)
+
+### Installation Tracking (`state.json`)
+Each installed wrapper is recorded in `state.json` with:
+```json
+{
+  "provider": "glm",
+  "model_id": "glm-51",
+  "wrapper_path": "/home/user/.local/bin/claude-glm",
+  "config_dir": "/home/user/.claude-glm",
+  "alias": "ccg",
+  "installed_at": "2026-03-29T12:00:00Z",
+  "install_version": "3.0.0"
+}
+```
+This enables orphan detection, clean uninstall, and tracking of what was installed.
 
 ### Installation Method Enforcement
 - `bin/preinstall.js` - Blocks all installation methods except `npx`
@@ -66,11 +95,14 @@ This ensures complete isolation - each provider has its own config directory and
 # Test the installer (runs interactively)
 npx github:bioodev/claude-code-providers-hub
 
-# Show available providers
+# Show available providers (reads dynamically from YAML config)
 npx github:bioodev/claude-code-providers-hub --list
 
 # Show help
 npx github:bioodev/claude-code-providers-hub --help
+
+# Uninstall all wrappers and configs
+npx github:bioodev/claude-code-providers-hub uninstall
 ```
 
 ### Testing configuration loader
@@ -86,6 +118,27 @@ node lib/config-loader.js export-bash glm glm-51 your-api-key
 
 # Generate wrapper script content
 node lib/config-loader.js wrapper-bash glm glm-51 your-api-key
+
+# List all recorded installed wrappers
+node lib/config-loader.js list-wrappers
+
+# Find orphaned wrappers (installed but no longer in config)
+node lib/config-loader.js find-orphans
+
+# Check if providers.yaml needs updating
+node lib/config-loader.js check-config-version
+
+# Update providers.yaml from shipped defaults (backup as .bak)
+node lib/config-loader.js update-config
+```
+
+### Testing uninstall
+```bash
+# Run uninstaller via install.sh
+bash install.sh --uninstall
+
+# Run uninstaller via install.ps1
+.\install.ps1 -Uninstall
 ```
 
 ### Development workflow
@@ -98,16 +151,16 @@ node lib/config-loader.js wrapper-bash glm glm-51 your-api-key
 
 ```
 bin/
-├── cli.js           # CLI entry point - detects platform, routes to installer
+├── cli.js           # CLI entry point - detects platform, routes to installer/uninstaller
 └── preinstall.js    # Installation method validator (npx-only enforcement)
 
 lib/
-├── config-loader.js # YAML config parser, wrapper generator, state management
+├── config-loader.js # YAML config parser, wrapper generator, state management, orphan detection
 └── providers.yaml   # Source provider/model definitions (template for user config)
 
 install               # Universal bootstrap script (OS detection, not in npm package)
-install.sh            # Unix/Linux/macOS installer (bash)
-install.ps1           # Windows installer (PowerShell)
+install.sh            # Unix/Linux/macOS installer (bash), supports --uninstall
+install.ps1           # Windows installer (PowerShell), supports -Uninstall
 package.json          # npm package definition
 CHANGELOG.md          # Version history
 README.md             # English documentation
@@ -117,8 +170,8 @@ README.es.md          # Spanish documentation
 ## Configuration State
 
 User state is maintained in `~/.claude-providers-hub/`:
-- `providers.yaml` - Provider/model definitions (editable by users for customization)
-- `state.json` - API keys and installation metadata
+- `providers.yaml` - Provider/model definitions (editable by users for customization; versioned via `config_version` field)
+- `state.json` - API keys, installed wrapper tracking, and installation metadata
 
 ## Important Constraints
 
@@ -127,6 +180,7 @@ User state is maintained in `~/.claude-providers-hub/`:
 - **npx-only design** - The package intentionally blocks `npm install` to ensure users always get the latest version
 - **Wrapper scripts are the output** - The main "product" is the generated wrapper scripts, not a running service
 - **No external dependencies** - config-loader.js includes its own simple YAML parser; the project has zero npm dependencies
+- **`showProviders()` is dynamic** - It reads from config-loader.js, not hardcoded strings; no manual update needed when models change
 
 ## Adding or Updating Models
 
@@ -134,9 +188,10 @@ User state is maintained in `~/.claude-providers-hub/`:
 
 1. Edit `lib/providers.yaml` — rename the model key (e.g. `glm-51` → `glm-52`) and update its `name` and `env.ANTHROPIC_DEFAULT_*_MODEL` values
 2. Edit `lib/config-loader.js` — apply the same change to the `DEFAULT_YAML` constant
-3. Update `bin/cli.js` — update `showProviders()` to reflect the new model name (this function has hardcoded strings)
+3. Bump `config_version` in both `lib/providers.yaml` and `DEFAULT_YAML` (e.g. `"1.1"` → `"1.2"`)
 4. Update the fallback hardcoded template in `install.sh` (the `cat > "$wrapper_path" << EOF` block in `create_claude_glm_wrapper`) and `install.ps1` (`New-ClaudeGlmWrapper`) to keep them in sync
 5. Update the "Update models" section in both installers to show the correct model name in user messages
+6. `bin/cli.js` `showProviders()` does NOT need updating — it reads dynamically from config
 
 ### Adding a new AI provider
 
@@ -149,11 +204,9 @@ User state is maintained in `~/.claude-providers-hub/`:
    node "$CONFIG_LOADER" wrapper-bash "<provider>" "$model_id" "$API_KEY" > "$wrapper_path"
    ```
 5. Add the equivalent `New-Claude<Provider>Wrapper` function to `install.ps1`
-6. Update `bin/cli.js` `showProviders()` to include the new provider
-
-## Known Issues
-
-- `bin/cli.js` `showProviders()` contains stale hardcoded model names (e.g., shows "GLM-4.7" instead of current "GLM-5.1") — should read from config-loader dynamically or be updated alongside model changes
+6. Add a `record-wrapper` call after wrapper creation in both installers
+7. Add the new provider to `cleanup_unselected_wrappers` (install.sh) and `Remove-UnselectedWrappers` (install.ps1)
+8. Bump `config_version` in both YAML sources
 
 ## Error Reporting
 

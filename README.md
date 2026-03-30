@@ -115,6 +115,28 @@ Config directories are kept separate so chat histories and settings never mix:
 
 On Windows, replace `~/` with `%USERPROFILE%\`.
 
+## Uninstall
+
+Remove all installed wrappers, aliases, and optionally config directories:
+
+```bash
+npx github:bioodev/claude-code-providers-hub uninstall
+```
+
+The uninstaller will:
+1. Remove all wrapper scripts from `~/.local/bin`
+2. Ask before removing provider config directories (contains chat history)
+3. Remove shell aliases from your `.bashrc`/`.zshrc`/PowerShell profile
+4. Remove the PATH entry if `~/.local/bin` is empty
+5. Ask before removing `~/.claude-providers-hub/` (providers.yaml, state.json)
+
+## Reinstalling and Cleanup
+
+When you re-run the installer over an existing installation, it automatically:
+
+1. **Detects orphaned installations** — wrappers and config directories from providers or models that no longer exist in the current config (e.g., from previous model versions), and offers to remove them
+2. **Checks config version** — if your `providers.yaml` is outdated (new providers/models shipped), offers to update it from defaults (API keys in `state.json` are preserved, a `.bak` backup is created)
+
 ## Updating Your API Key
 
 Re-run the installer and choose "Update API key only":

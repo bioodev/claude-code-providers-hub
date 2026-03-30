@@ -14,7 +14,8 @@
 
 param(
     [switch]$TestError,
-    [switch]$Debug
+    [switch]$Debug,
+    [switch]$Uninstall
 )
 
 # Support environment variables for parameters when using iwr | iex
@@ -342,6 +343,7 @@ function New-ClaudeGlmWrapper {
 
     Set-Content -Path $wrapperPath -Value $wrapperContent
     Write-Host "OK: Installed claude-glm at $wrapperPath" -ForegroundColor Green
+    if (Test-Path $ConfigLoader) { node $ConfigLoader record-wrapper "glm" "glm-51" $wrapperPath "$env:USERPROFILE\.claude-glm" "ccg" 2>$null }
 }
 
 # Create the fast GLM-4.5-Air wrapper
@@ -386,6 +388,7 @@ function New-ClaudeGlmFastWrapper {
 
     Set-Content -Path $wrapperPath -Value $wrapperContent
     Write-Host "OK: Installed claude-glm-fast at $wrapperPath" -ForegroundColor Green
+    if (Test-Path $ConfigLoader) { node $ConfigLoader record-wrapper "glm" "glm-fast" $wrapperPath "$env:USERPROFILE\.claude-glm-fast" "ccf" 2>$null }
 }
 
 # Create the MiniMax wrapper
@@ -435,6 +438,7 @@ function New-ClaudeMiniMaxWrapper {
 
     Set-Content -Path $wrapperPath -Value $wrapperContent
     Write-Host "OK: Installed ccm at $wrapperPath" -ForegroundColor Green
+    if (Test-Path $ConfigLoader) { node $ConfigLoader record-wrapper "minimax" "default" $wrapperPath "$env:USERPROFILE\.claude-minimax" "ccm" 2>$null }
 }
 
 # Create the DeepSeek wrapper
@@ -481,6 +485,7 @@ function New-ClaudeDeepSeekWrapper {
 
     Set-Content -Path $wrapperPath -Value $wrapperContent
     Write-Host "OK: Installed ccd at $wrapperPath" -ForegroundColor Green
+    if (Test-Path $ConfigLoader) { node $ConfigLoader record-wrapper "deepseek" "default" $wrapperPath "$env:USERPROFILE\.claude-deepseek" "ccd" 2>$null }
 }
 
 # Clean up wrappers for providers not selected in this installation
@@ -682,6 +687,47 @@ function Remove-AliasesFromShell {
     # Write back
     $filteredContent = $filteredLines -join "`r`n"
     Set-Content -Path $profilePath -Value $filteredContent
+}
+
+# Clean up orphaned wrappers from previous installs
+function Remove-OrphanedWrappers {
+    if (-not (Test-Path $ConfigLoader)) { return }
+
+    $orphans = node $ConfigLoader find-orphans 2>$null | ConvertFrom-Json
+
+    if (-not $orphans -or $orphans.Count -eq 0) { return }
+
+    Write-Host ""
+    Write-Host "Found orphaned installations from previous versions:" -ForegroundColor Yellow
+    foreach ($item in $orphans) {
+        Write-Host "  - $($item.alias) ($($item.provider)/$($item.model_id))"
+    }
+    Write-Host ""
+
+    $choice = Read-Host "Remove orphaned installations? (y/N)"
+    if ($choice -ne 'y' -and $choice -ne 'Y') { return }
+
+    foreach ($item in $orphans) {
+        # Remove wrapper file
+        if (Test-Path $item.wrapper_path) {
+            Remove-Item -Force $item.wrapper_path
+            Write-Host "  Removed wrapper: $($item.wrapper_path)"
+        }
+        # Remove config directory
+        if (Test-Path $item.config_dir) {
+            Remove-Item -Recurse -Force $item.config_dir
+            Write-Host "  Removed config: $($item.config_dir)"
+        }
+        # Remove alias
+        if ($item.alias) {
+            Remove-AliasesFromShell -AliasesToSearch $item.alias
+        }
+        # Remove from state
+        node $ConfigLoader remove-wrapper $item.provider $item.model_id 2>$null
+    }
+
+    Write-Host ""
+    Write-Host "OK: Orphaned installations cleaned up." -ForegroundColor Green
 }
 
 # Check Claude Code availability
@@ -918,6 +964,22 @@ function Install-ClaudeGlm {
     Write-DebugLog "Checking for old installations..."
     Remove-OldWrappers
 
+    # Check if providers.yaml needs updating
+    if (Test-Path $ConfigLoader) {
+        $configStatus = node $ConfigLoader check-config-version 2>$null | ConvertFrom-Json
+        if ($configStatus.needsUpdate -eq $true) {
+            Write-Host ""
+            Write-Host "WARNING: Your providers.yaml is outdated (new providers/models available)." -ForegroundColor Yellow
+            Write-Host "1. Update providers.yaml (API keys in state.json are preserved)"
+            Write-Host "2. Keep current"
+            $yamlChoice = Read-Host "Choice (1-2)"
+            if ($yamlChoice -eq "1") {
+                node $ConfigLoader update-config 2>$null
+                Write-Host "OK: providers.yaml updated (backup saved as .bak)" -ForegroundColor Green
+            }
+        }
+    }
+
     # Check if already installed
     $glmWrapper = Join-Path $UserBinDir "claude-glm.ps1"
     $glmFastWrapper = Join-Path $UserBinDir "claude-glm-fast.ps1"
@@ -926,6 +988,10 @@ function Install-ClaudeGlm {
     if ((Test-Path $glmWrapper) -or (Test-Path $glmFastWrapper) -or (Test-Path $miniMaxWrapper)) {
         Write-Host ""
         Write-Host "OK: Existing installation detected!"
+
+        # Check for orphaned installations from previous versions
+        Remove-OrphanedWrappers
+
         Write-Host "1. Update models only (keep API keys)"
         Write-Host "2. Update API key only"
         Write-Host "3. Reinstall everything"
@@ -994,7 +1060,6 @@ function Install-ClaudeGlm {
                     if ($inputKey) {
                         $script:ZaiApiKey = $inputKey
                         New-ClaudeGlmWrapper
-                        New-ClaudeGlm45Wrapper
                         New-ClaudeGlmFastWrapper
                         Write-Host "OK: GLM API key updated!"
                     }
@@ -1164,7 +1229,7 @@ function Install-ClaudeGlm {
     Write-Host "LOCATION: Installation location: $UserBinDir"
     
     if ($providerChoice -eq "1" -or $providerChoice -eq "3") {
-        Write-Host "LOCATION: GLM Config directories: $GlmConfigDir, $Glm45ConfigDir, $GlmFastConfigDir"
+        Write-Host "LOCATION: GLM Config directories: $GlmConfigDir, $GlmFastConfigDir"
     }
     
     if ($providerChoice -eq "2" -or $providerChoice -eq "3") {
@@ -1202,6 +1267,92 @@ if ($TestError) {
     Write-Host "Press Enter to finish (window will remain open)..." -ForegroundColor Gray
     $null = Read-Host
     # Script will not continue to installation - test mode ends here
+}
+
+# Uninstall function
+function Uninstall-ClaudeGlm {
+    Write-Host "Uninstalling claude-code-providers-hub..." -ForegroundColor Yellow
+    Write-Host ""
+
+    # Remove wrapper scripts
+    $wrapperFiles = @("claude-glm.ps1", "claude-glm-fast.ps1", "ccm.ps1", "ccd.ps1")
+    $removedCount = 0
+    foreach ($w in $wrapperFiles) {
+        $wpath = Join-Path $UserBinDir $w
+        if (Test-Path $wpath) {
+            Remove-Item -Force $wpath
+            Write-Host "  Removed wrapper: $wpath"
+            $removedCount++
+        }
+    }
+
+    # Remove config directories (with confirmation)
+    $configDirs = @(
+        "$env:USERPROFILE\.claude-glm",
+        "$env:USERPROFILE\.claude-glm-fast",
+        "$env:USERPROFILE\.claude-minimax",
+        "$env:USERPROFILE\.claude-deepseek"
+    )
+    Write-Host ""
+    $rmConfigs = Read-Host "Remove provider config directories (includes chat history)? (y/N)"
+    if ($rmConfigs -eq 'y' -or $rmConfigs -eq 'Y') {
+        foreach ($d in $configDirs) {
+            if (Test-Path $d) {
+                Remove-Item -Recurse -Force $d
+                Write-Host "  Removed config: $d"
+            }
+        }
+    } else {
+        Write-Host "  Keeping config directories."
+    }
+
+    # Remove aliases from PowerShell profile
+    $allAliases = @("cc", "ccg", "ccf", "ccm", "ccd")
+    Remove-AliasesFromShell -AliasesToSearch $allAliases
+    Write-Host "  Removed shell aliases."
+
+    # Remove PATH entry if directory is now empty
+    if (Test-Path $UserBinDir) {
+        $remaining = Get-ChildItem $UserBinDir -ErrorAction SilentlyContinue
+        if ($remaining.Count -eq 0) {
+            Write-Host ""
+            Write-Host "  $UserBinDir is now empty."
+            $rmPath = Read-Host "Remove PATH entry from user environment? (y/N)"
+            if ($rmPath -eq 'y' -or $rmPath -eq 'Y') {
+                $currentPath = [Environment]::GetEnvironmentVariable("PATH", "User")
+                $pathParts = $currentPath -split ";" | Where-Object { $_ -ne $UserBinDir }
+                $newPath = $pathParts -join ";"
+                [Environment]::SetEnvironmentVariable("PATH", $newPath, "User")
+                Write-Host "  Removed PATH entry."
+            }
+        }
+    }
+
+    # Remove ~/.claude-providers-hub/
+    Write-Host ""
+    if (Test-Path $ProvidersHubDir) {
+        $rmHub = Read-Host "Remove $ProvidersHubDir (providers.yaml, state.json)? (y/N)"
+        if ($rmHub -eq 'y' -or $rmHub -eq 'Y') {
+            Remove-Item -Recurse -Force $ProvidersHubDir
+            Write-Host "  Removed: $ProvidersHubDir"
+        } else {
+            Write-Host "  Keeping: $ProvidersHubDir"
+        }
+    }
+
+    # Clear wrapper records
+    if (Test-Path $ConfigLoader) {
+        node $ConfigLoader clear-wrappers 2>$null
+    }
+
+    Write-Host ""
+    Write-Host "OK: Uninstall complete." -ForegroundColor Green
+}
+
+# Handle -Uninstall flag
+if ($Uninstall) {
+    Uninstall-ClaudeGlm
+    return
 }
 
 # Only run installation if not in test mode

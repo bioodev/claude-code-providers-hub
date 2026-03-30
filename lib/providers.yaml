@@ -1,6 +1,7 @@
 # Provider configurations for claude-code-providers-hub
 # This file defines available providers and their models
-# Version: 1.0
+
+config_version: "1.1"
 
 # Provider definitions
 providers:

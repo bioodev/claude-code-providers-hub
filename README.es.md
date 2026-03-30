@@ -133,6 +133,27 @@ npx github:bioodev/claude-code-providers-hub
 
 Consulta [CLAUDE.md](CLAUDE.md) para el esquema completo de proveedores y modelos.
 
+## Desinstalar
+
+Elimina todos los wrappers, alias y opcionalmente los directorios de configuración:
+
+```bash
+npx github:bioodev/claude-code-providers-hub uninstall
+```
+
+El desinstalador:
+1. Elimina todos los wrapper scripts de `~/.local/bin`
+2. Pregunta antes de eliminar los directorios de config de cada proveedor (contiene historial de chat)
+3. Elimina los aliases del shell de `.bashrc`/`.zshrc`/PowerShell profile
+4. Elimina la entrada PATH si `~/.local/bin` queda vacío
+5. Pregunta antes de eliminar `~/.claude-providers-hub/` (providers.yaml, state.json)
+
+## Reinstalación y limpieza
+
+Al reinstalar, el instalador detecta automáticamente:
+- **Instalaciones huérfanas** — wrappers/configs de providers o modelos que ya no existen en la configuración actual (ej: versiones anteriores de modelos), y ofrece eliminarlos
+- **Configuración desactualizada** — si tu `providers.yaml` tiene una versión vieja, ofrece actualizarla desde los defaults (con backup `.bak`)
+
 ## Solución de problemas
 
 **`ccg: command not found` (o `ccf`, `ccm`, `ccd`)**

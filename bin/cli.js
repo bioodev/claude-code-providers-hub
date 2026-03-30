@@ -30,10 +30,11 @@ function showHelp() {
   console.log('  npx github:bioodev/claude-code-providers-hub [command]');
   console.log('');
   console.log('COMMANDS:');
-  console.log('  install    Run the interactive installer (default)');
-  console.log('  --help     Show this help message');
-  console.log('  --version  Show version information');
-  console.log('  --list     Show available providers');
+  console.log('  install     Run the interactive installer (default)');
+  console.log('  uninstall   Remove all installed wrappers and configs');
+  console.log('  --help      Show this help message');
+  console.log('  --version   Show version information');
+  console.log('  --list      Show available providers');
   console.log('');
   console.log('EXAMPLES:');
   console.log('  npx github:bioodev/claude-code-providers-hub install');
@@ -56,28 +57,31 @@ function showVersion() {
 
 // List providers
 function showProviders() {
+  const { loadConfig, expandHomePath } = require('../lib/config-loader');
+  const config = loadConfig();
+  if (!config.providers) {
+    console.log('No providers found in configuration.');
+    return;
+  }
+
   console.log('🤖 Available AI Providers:');
   console.log('==========================');
   console.log('');
-  console.log('1. GLM Provider (Z.AI)');
-  console.log('   Models: GLM-4.7, GLM-4.5-Air');
-  console.log('   Commands: ccg, ccg45, ccf');
-  console.log('   Config: ~/.claude-glm/');
-  console.log('');
-  console.log('2. MiniMax Provider');
-  console.log('   Models: MiniMax-M2');
-  console.log('   Commands: ccm');
-  console.log('   Config: ~/.claude-minimax/');
-  console.log('');
-  console.log('3. DeepSeek Provider');
-  console.log('   Models: deepseek-chat');
-  console.log('   Commands: ccd');
-  console.log('   Config: ~/.claude-deepseek/');
-  console.log('');
-  console.log('4. Anthropic Claude (Official)');
-  console.log('   Models: Claude 3.5 Sonnet, Haiku, Opus');
-  console.log('   Commands: claude, cc');
-  console.log('   Config: ~/.claude/');
+
+  let idx = 1;
+  Object.entries(config.providers).forEach(([key, provider]) => {
+    const models = provider.models || {};
+    const modelNames = Object.values(models).map(m => m.name).join(', ');
+    const commands = Object.values(models).map(m => m.alias || m.wrapper_name).join(', ');
+    const configDir = provider.config_dir ? expandHomePath(provider.config_dir) : '~/.claude/';
+
+    console.log(`${idx}. ${provider.name}`);
+    console.log(`   Models: ${modelNames}`);
+    console.log(`   Commands: ${commands}`);
+    console.log(`   Config: ${configDir}`);
+    console.log('');
+    idx++;
+  });
 }
 
 // Run installer with provider selection
@@ -144,6 +148,64 @@ function runInstaller() {
   });
 }
 
+// Run uninstaller
+function runUninstaller() {
+  let scriptPath, command, args;
+
+  console.log('🗑️  Multi-Provider Claude Uninstaller');
+  console.log('======================================\n');
+
+  if (platform === 'win32') {
+    scriptPath = path.join(rootDir, 'install.ps1');
+
+    if (!fs.existsSync(scriptPath)) {
+      console.error('❌ Error: install.ps1 not found!');
+      process.exit(1);
+    }
+
+    command = 'powershell.exe';
+    args = [
+      '-NoProfile',
+      '-ExecutionPolicy', 'Bypass',
+      '-File', scriptPath,
+      '-Uninstall'
+    ];
+
+  } else if (platform === 'darwin' || platform === 'linux') {
+    scriptPath = path.join(rootDir, 'install.sh');
+
+    if (!fs.existsSync(scriptPath)) {
+      console.error('❌ Error: install.sh not found!');
+      process.exit(1);
+    }
+
+    command = 'bash';
+    args = [scriptPath, '--uninstall'];
+
+  } else {
+    console.error(`❌ Unsupported platform: ${platform}`);
+    process.exit(1);
+  }
+
+  const uninstaller = spawn(command, args, {
+    stdio: 'inherit',
+    cwd: rootDir
+  });
+
+  uninstaller.on('error', (error) => {
+    console.error(`❌ Failed to start uninstaller: ${error.message}`);
+    process.exit(1);
+  });
+
+  uninstaller.on('close', (code) => {
+    if (code !== 0) {
+      console.error(`\n❌ Uninstaller exited with code ${code}`);
+      process.exit(code);
+    }
+    console.log('\n✅ Uninstall completed successfully!');
+  });
+}
+
 // Main CLI logic
 function main() {
   // Handle different commands
@@ -166,6 +228,10 @@ function main() {
       showProviders();
       break;
 
+    case 'uninstall':
+      runUninstaller();
+      break;
+
     case 'install':
     case undefined:
     case null:
@@ -185,4 +251,4 @@ if (require.main === module) {
   main();
 }
 
-module.exports = { showHelp, showVersion, showProviders, runInstaller };
+module.exports = { showHelp, showVersion, showProviders, runInstaller, runUninstaller };
