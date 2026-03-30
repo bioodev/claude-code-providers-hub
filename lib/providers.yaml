@@ -1,7 +1,7 @@
 # Provider configurations for claude-code-providers-hub
 # This file defines available providers and their models
 
-config_version: "1.1"
+config_version: "1.2"
 
 # Provider definitions
 providers:
@@ -37,6 +37,8 @@ providers:
           ANTHROPIC_DEFAULT_OPUS_MODEL: "glm-5.1"
           ANTHROPIC_DEFAULT_SONNET_MODEL: "glm-5.1"
           ANTHROPIC_DEFAULT_HAIKU_MODEL: "glm-4.5-air"
+          API_TIMEOUT_MS: "600000"
+          CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "1"
 
       # GLM-4.5-Air (Fast)
       glm-fast:
@@ -49,6 +51,8 @@ providers:
           ANTHROPIC_DEFAULT_OPUS_MODEL: "glm-4.5-air"
           ANTHROPIC_DEFAULT_SONNET_MODEL: "glm-4.5-air"
           ANTHROPIC_DEFAULT_HAIKU_MODEL: "glm-4.5-air"
+          API_TIMEOUT_MS: "600000"
+          CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "1"
 
   # MiniMax Provider
   minimax:

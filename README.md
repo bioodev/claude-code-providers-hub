@@ -115,6 +115,95 @@ Config directories are kept separate so chat histories and settings never mix:
 
 On Windows, replace `~/` with `%USERPROFILE%\`.
 
+## Advanced Configuration
+
+The installer includes an optional **Advanced Options** step after API key collection. You can toggle telemetry, disable auto-updates, and set limits per provider. To access it on an existing install, run:
+
+```bash
+npx github:bioodev/claude-code-providers-hub
+# Choose: "Update models only" → answer y when asked about advanced options
+```
+
+### Available Environment Variables
+
+Claude Code supports 60+ environment variables. The following are the most useful ones — all can be configured through the installer menu or added manually (see below).
+
+#### Authentication & API
+
+| Variable | Description |
+|----------|-------------|
+| `ANTHROPIC_API_KEY` | Main API key for Anthropic authentication |
+| `ANTHROPIC_BASE_URL` | Custom API endpoint (proxies or alternative providers) |
+
+#### Model Selection
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `ANTHROPIC_MODEL` | Primary model override | `claude-sonnet-4` |
+| `ANTHROPIC_DEFAULT_OPUS_MODEL` | Opus-tier model mapping | `claude-opus-4` |
+| `ANTHROPIC_DEFAULT_SONNET_MODEL` | Sonnet-tier model mapping | `claude-sonnet-4` |
+| `ANTHROPIC_DEFAULT_HAIKU_MODEL` | Haiku-tier model (background tasks) | `claude-haiku-4` |
+| `CLAUDE_CODE_SUBAGENT_MODEL` | Model used for subagents (inherits main if unset) | |
+
+#### Performance & Limits
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `CLAUDE_CODE_MAX_OUTPUT_TOKENS` | Max tokens per response (max 64k) | 32768 |
+| `CLAUDE_CODE_EFFORT_LEVEL` | Reasoning level: `low` / `medium` / `high` / `max` / `auto` | `auto` |
+| `API_TIMEOUT_MS` | HTTP request timeout in milliseconds | varies |
+| `BASH_DEFAULT_TIMEOUT_MS` | Timeout for Bash tool commands | — |
+| `MAX_THINKING_TOKENS` | Token budget for internal reasoning | — |
+
+#### Telemetry & Privacy
+
+| Variable | Value | Description |
+|----------|-------|-------------|
+| `DISABLE_TELEMETRY` | `1` | Disable Statsig usage metrics |
+| `DISABLE_ERROR_REPORTING` | `1` | Disable Sentry error reports |
+| `DISABLE_FEEDBACK_COMMAND` | `1` | Block the `/feedback` command |
+| `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` | `1` | Block all non-essential network traffic |
+| `CLAUDE_CODE_ENABLE_TELEMETRY` | `0` | Disable OpenTelemetry metrics |
+| `OTEL_METRICS_EXPORTER` | `none` | Disable OTEL metrics export |
+| `OTEL_TRACES_EXPORTER` | `none` | Disable OTEL trace export |
+
+#### Behavior
+
+| Variable | Value | Description |
+|----------|-------|-------------|
+| `CLAUDE_CODE_DISABLE_AUTO_UPDATES` | `1` | Disable automatic Claude Code updates |
+| `CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS` | `1` | Disable beta headers (fixes issues on Bedrock/Vertex) |
+
+#### Integration
+
+| Variable | Description |
+|----------|-------------|
+| `HTTP_PROXY` / `HTTPS_PROXY` | Network proxies for external connections |
+| `MCP_TIMEOUT` | Timeout for MCP server connections |
+| `CLAUDE_CODE_IDE_HOST_OVERRIDE` | Custom IDE host address |
+
+### Adding Any Variable Manually
+
+Add any variable to your provider's config in `~/.claude-providers-hub/providers.yaml`:
+
+```yaml
+providers:
+  glm:
+    models:
+      glm-51:
+        env:
+          CLAUDE_CODE_MAX_OUTPUT_TOKENS: "32000"
+          BASH_DEFAULT_TIMEOUT_MS: "30000"
+          DISABLE_TELEMETRY: "1"
+```
+
+Then regenerate the wrapper:
+
+```bash
+npx github:bioodev/claude-code-providers-hub
+# Choose: "Update models only"
+```
+
 ## Uninstall
 
 Remove all installed wrappers, aliases, and optionally config directories:

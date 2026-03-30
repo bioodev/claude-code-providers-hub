@@ -312,6 +312,8 @@ function New-ClaudeGlmWrapper {
         '$env:ANTHROPIC_DEFAULT_OPUS_MODEL = "glm-5.1"',
         '$env:ANTHROPIC_DEFAULT_SONNET_MODEL = "glm-5.1"',
         '$env:ANTHROPIC_DEFAULT_HAIKU_MODEL = "glm-4.5-air"',
+        '$env:API_TIMEOUT_MS = "600000"',
+        '$env:CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC = "1"',
         '',
         '# Use custom config directory to avoid conflicts',
         "`$env:CLAUDE_HOME = `"$GlmConfigDir`"",
@@ -322,7 +324,7 @@ function New-ClaudeGlmWrapper {
         '}',
         '',
         '# Create/update settings file with GLM configuration',
-        '$settingsJson = "{`"env`":{`"ANTHROPIC_BASE_URL`":`"https://api.z.ai/api/anthropic`",`"ANTHROPIC_AUTH_TOKEN`":`"' + $ZaiApiKey + '`",`"ANTHROPIC_DEFAULT_OPUS_MODEL`":`"glm-5.1`",`"ANTHROPIC_DEFAULT_SONNET_MODEL`":`"glm-5.1`",`"ANTHROPIC_DEFAULT_HAIKU_MODEL`":`"glm-4.5-air`"}}"',
+        '$settingsJson = "{`"env`":{`"ANTHROPIC_BASE_URL`":`"https://api.z.ai/api/anthropic`",`"ANTHROPIC_AUTH_TOKEN`":`"' + $ZaiApiKey + '`",`"ANTHROPIC_DEFAULT_OPUS_MODEL`":`"glm-5.1`",`"ANTHROPIC_DEFAULT_SONNET_MODEL`":`"glm-5.1`",`"ANTHROPIC_DEFAULT_HAIKU_MODEL`":`"glm-4.5-air`",`"API_TIMEOUT_MS`":`"600000`",`"CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC`":`"1`"}}"',
         'Set-Content -Path (Join-Path $env:CLAUDE_HOME "settings.json") -Value $settingsJson',
         '',
         '# Launch Claude Code with custom config',
@@ -357,6 +359,8 @@ function New-ClaudeGlmFastWrapper {
         '# Set Z.AI environment variables',
         '$env:ANTHROPIC_BASE_URL = "https://api.z.ai/api/anthropic"',
         "`$env:ANTHROPIC_AUTH_TOKEN = `"$ZaiApiKey`"",
+        '$env:API_TIMEOUT_MS = "600000"',
+        '$env:CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC = "1"',
         '',
         '# Use custom config directory to avoid conflicts',
         "`$env:CLAUDE_HOME = `"$GlmFastConfigDir`"",
@@ -367,7 +371,7 @@ function New-ClaudeGlmFastWrapper {
         '}',
         '',
         '# Create/update settings file with GLM-Air configuration',
-        '$settingsJson = "{`"env`":{`"ANTHROPIC_BASE_URL`":`"https://api.z.ai/api/anthropic`",`"ANTHROPIC_AUTH_TOKEN`":`"' + $ZaiApiKey + '`",`"ANTHROPIC_DEFAULT_OPUS_MODEL`":`"glm-4.5-air`",`"ANTHROPIC_DEFAULT_SONNET_MODEL`":`"glm-4.5-air`",`"ANTHROPIC_DEFAULT_HAIKU_MODEL`":`"glm-4.5-air`"}}"',
+        '$settingsJson = "{`"env`":{`"ANTHROPIC_BASE_URL`":`"https://api.z.ai/api/anthropic`",`"ANTHROPIC_AUTH_TOKEN`":`"' + $ZaiApiKey + '`",`"ANTHROPIC_DEFAULT_OPUS_MODEL`":`"glm-4.5-air`",`"ANTHROPIC_DEFAULT_SONNET_MODEL`":`"glm-4.5-air`",`"ANTHROPIC_DEFAULT_HAIKU_MODEL`":`"glm-4.5-air`",`"API_TIMEOUT_MS`":`"600000`",`"CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC`":`"1`"}}"',
         'Set-Content -Path (Join-Path $env:CLAUDE_HOME "settings.json") -Value $settingsJson',
         '',
         '# Launch Claude Code with custom config',
@@ -687,6 +691,92 @@ function Remove-AliasesFromShell {
     # Write back
     $filteredContent = $filteredLines -join "`r`n"
     Set-Content -Path $profilePath -Value $filteredContent
+}
+
+# Configure advanced environment variables for a provider (interactive menu)
+function Set-AdvancedOptions {
+    param(
+        [string]$ProviderName,
+        [string[]]$ModelIds,
+        [string]$DisplayName
+    )
+
+    Write-Host ""
+    $advChoice = Read-Host "Configure advanced options for $DisplayName? (y/N)"
+    if ($advChoice -ne 'y' -and $advChoice -ne 'Y') { return }
+
+    $firstModel = $ModelIds[0]
+
+    # Read current custom env values
+    $customJson = $null
+    if (Test-Path $ConfigLoader) {
+        try { $customJson = node $ConfigLoader get-custom-env $ProviderName $firstModel 2>$null | ConvertFrom-Json } catch {}
+    }
+
+    $telemetryState   = if ($customJson -and $customJson.DISABLE_TELEMETRY -eq '1') { 'ON' } else { 'OFF' }
+    $autoUpdateState  = if ($customJson -and $customJson.CLAUDE_CODE_DISABLE_AUTO_UPDATES -eq '1') { 'ON' } else { 'OFF' }
+    $maxTokensVal     = if ($customJson -and $customJson.CLAUDE_CODE_MAX_OUTPUT_TOKENS) { $customJson.CLAUDE_CODE_MAX_OUTPUT_TOKENS } else { 'default' }
+    $bashTimeoutVal   = if ($customJson -and $customJson.BASH_DEFAULT_TIMEOUT_MS) { $customJson.BASH_DEFAULT_TIMEOUT_MS } else { 'default' }
+
+    while ($true) {
+        Write-Host ""
+        Write-Host "-- Advanced Options: $DisplayName ---------------------------"
+        Write-Host "1. Disable telemetry/tracking    [$telemetryState]"
+        Write-Host "2. Disable auto-updates          [$autoUpdateState]"
+        Write-Host "3. Max output tokens             [$maxTokensVal]"
+        Write-Host "4. Bash command timeout (ms)     [$bashTimeoutVal]"
+        Write-Host "5. Done"
+        $advOpt = Read-Host "Choice (1-5)"
+
+        switch ($advOpt) {
+            "1" { $telemetryState  = if ($telemetryState -eq 'OFF') { 'ON' } else { 'OFF' } }
+            "2" { $autoUpdateState = if ($autoUpdateState -eq 'OFF') { 'ON' } else { 'OFF' } }
+            "3" {
+                $tokInput = Read-Host "Max output tokens (e.g. 32000, max 64000; Enter=clear)"
+                $maxTokensVal = if ($tokInput) { $tokInput } else { 'default' }
+            }
+            "4" {
+                $timeoutInput = Read-Host "Bash timeout in ms (e.g. 30000; Enter=clear)"
+                $bashTimeoutVal = if ($timeoutInput) { $timeoutInput } else { 'default' }
+            }
+            "5" { break }
+        }
+        if ($advOpt -eq "5") { break }
+    }
+
+    # Save settings to all model IDs
+    foreach ($modelId in $ModelIds) {
+        if (Test-Path $ConfigLoader) {
+            # Telemetry
+            if ($telemetryState -eq 'ON') {
+                node $ConfigLoader set-custom-env $ProviderName $modelId DISABLE_TELEMETRY 1 2>$null
+                node $ConfigLoader set-custom-env $ProviderName $modelId DISABLE_ERROR_REPORTING 1 2>$null
+            } else {
+                node $ConfigLoader remove-custom-env $ProviderName $modelId DISABLE_TELEMETRY 2>$null
+                node $ConfigLoader remove-custom-env $ProviderName $modelId DISABLE_ERROR_REPORTING 2>$null
+            }
+            # Auto-updates
+            if ($autoUpdateState -eq 'ON') {
+                node $ConfigLoader set-custom-env $ProviderName $modelId CLAUDE_CODE_DISABLE_AUTO_UPDATES 1 2>$null
+            } else {
+                node $ConfigLoader remove-custom-env $ProviderName $modelId CLAUDE_CODE_DISABLE_AUTO_UPDATES 2>$null
+            }
+            # Max tokens
+            if ($maxTokensVal -ne 'default') {
+                node $ConfigLoader set-custom-env $ProviderName $modelId CLAUDE_CODE_MAX_OUTPUT_TOKENS $maxTokensVal 2>$null
+            } else {
+                node $ConfigLoader remove-custom-env $ProviderName $modelId CLAUDE_CODE_MAX_OUTPUT_TOKENS 2>$null
+            }
+            # Bash timeout
+            if ($bashTimeoutVal -ne 'default') {
+                node $ConfigLoader set-custom-env $ProviderName $modelId BASH_DEFAULT_TIMEOUT_MS $bashTimeoutVal 2>$null
+            } else {
+                node $ConfigLoader remove-custom-env $ProviderName $modelId BASH_DEFAULT_TIMEOUT_MS 2>$null
+            }
+        }
+    }
+
+    Write-Host "OK: Advanced options saved for $DisplayName." -ForegroundColor Green
 }
 
 # Clean up orphaned wrappers from previous installs
@@ -1030,6 +1120,13 @@ function Install-ClaudeGlm {
                     }
                 }
 
+                # Offer advanced options before regenerating wrappers
+                if (Test-Path $ConfigLoader) {
+                    if ($script:ZaiApiKey) { Set-AdvancedOptions -ProviderName "glm" -ModelIds @("glm-51","glm-fast") -DisplayName "Z.AI GLM" }
+                    if ($script:MiniMaxApiKey) { Set-AdvancedOptions -ProviderName "minimax" -ModelIds @("default") -DisplayName "MiniMax" }
+                    if ($script:DeepSeekApiKey) { Set-AdvancedOptions -ProviderName "deepseek" -ModelIds @("default") -DisplayName "DeepSeek" }
+                }
+
                 # Regenerate wrappers with new models
                 if ($script:ZaiApiKey) {
                     New-ClaudeGlmWrapper
@@ -1131,6 +1228,19 @@ function Install-ClaudeGlm {
             Write-Host "OK: DeepSeek API key received ($keyLength characters)"
         } else {
             Write-Host "WARNING: No DeepSeek API key provided. Add it manually later."
+        }
+    }
+
+    # Advanced options per selected provider (optional, interactive)
+    if (Test-Path $ConfigLoader) {
+        if ($providerChoice -eq "1" -or $providerChoice -eq "4" -or $providerChoice -eq "5") {
+            if ($script:ZaiApiKey) { Set-AdvancedOptions -ProviderName "glm" -ModelIds @("glm-51","glm-fast") -DisplayName "Z.AI GLM" }
+        }
+        if ($providerChoice -eq "2" -or $providerChoice -eq "4" -or $providerChoice -eq "5") {
+            if ($script:MiniMaxApiKey) { Set-AdvancedOptions -ProviderName "minimax" -ModelIds @("default") -DisplayName "MiniMax" }
+        }
+        if ($providerChoice -eq "3" -or $providerChoice -eq "4" -or $providerChoice -eq "5") {
+            if ($script:DeepSeekApiKey) { Set-AdvancedOptions -ProviderName "deepseek" -ModelIds @("default") -DisplayName "DeepSeek" }
         }
     }
 

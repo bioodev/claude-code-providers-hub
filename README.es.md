@@ -115,6 +115,95 @@ Los directorios de configuración se mantienen separados para que los historiale
 
 En Windows, reemplaza `~/` por `%USERPROFILE%\`.
 
+## Configuración avanzada
+
+El instalador incluye un paso opcional de **opciones avanzadas** después de recopilar las claves API. Puedes activar/desactivar la telemetría, deshabilitar actualizaciones automáticas y configurar límites por proveedor. Para acceder en una instalación existente:
+
+```bash
+npx github:bioodev/claude-code-providers-hub
+# Elige: "Update models only" → responde y cuando pregunte por opciones avanzadas
+```
+
+### Variables de entorno disponibles
+
+Claude Code admite más de 60 variables de entorno. Las más útiles se muestran a continuación — todas pueden configurarse mediante el menú del instalador o agregarse manualmente (ver más abajo).
+
+#### Autenticación y API
+
+| Variable | Descripción |
+|----------|-------------|
+| `ANTHROPIC_API_KEY` | Clave API principal para autenticación con Anthropic |
+| `ANTHROPIC_BASE_URL` | Endpoint API personalizado (proxies o proveedores alternativos) |
+
+#### Selección de modelos
+
+| Variable | Descripción | Ejemplo |
+|----------|-------------|---------|
+| `ANTHROPIC_MODEL` | Modelo principal (override) | `claude-sonnet-4` |
+| `ANTHROPIC_DEFAULT_OPUS_MODEL` | Mapeo del modelo tier Opus | `claude-opus-4` |
+| `ANTHROPIC_DEFAULT_SONNET_MODEL` | Mapeo del modelo tier Sonnet | `claude-sonnet-4` |
+| `ANTHROPIC_DEFAULT_HAIKU_MODEL` | Modelo Haiku (tareas en segundo plano) | `claude-haiku-4` |
+| `CLAUDE_CODE_SUBAGENT_MODEL` | Modelo para subagentes (hereda del principal si no se define) | |
+
+#### Rendimiento y límites
+
+| Variable | Descripción | Por defecto |
+|----------|-------------|-------------|
+| `CLAUDE_CODE_MAX_OUTPUT_TOKENS` | Tokens máximos por respuesta (máx. 64k) | 32768 |
+| `CLAUDE_CODE_EFFORT_LEVEL` | Nivel de razonamiento: `low` / `medium` / `high` / `max` / `auto` | `auto` |
+| `API_TIMEOUT_MS` | Timeout de solicitudes HTTP en milisegundos | varía |
+| `BASH_DEFAULT_TIMEOUT_MS` | Timeout para comandos Bash | — |
+| `MAX_THINKING_TOKENS` | Límite de tokens para razonamiento interno | — |
+
+#### Telemetría y privacidad
+
+| Variable | Valor | Descripción |
+|----------|-------|-------------|
+| `DISABLE_TELEMETRY` | `1` | Desactiva métricas de uso (Statsig) |
+| `DISABLE_ERROR_REPORTING` | `1` | Desactiva reportes de errores (Sentry) |
+| `DISABLE_FEEDBACK_COMMAND` | `1` | Bloquea el comando `/feedback` |
+| `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` | `1` | Bloquea todo tráfico no esencial |
+| `CLAUDE_CODE_ENABLE_TELEMETRY` | `0` | Desactiva métricas OpenTelemetry |
+| `OTEL_METRICS_EXPORTER` | `none` | Desactiva exportación de métricas OTEL |
+| `OTEL_TRACES_EXPORTER` | `none` | Desactiva exportación de trazas OTEL |
+
+#### Comportamiento
+
+| Variable | Valor | Descripción |
+|----------|-------|-------------|
+| `CLAUDE_CODE_DISABLE_AUTO_UPDATES` | `1` | Desactiva actualizaciones automáticas de Claude Code |
+| `CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS` | `1` | Desactiva headers beta (soluciona errores en Bedrock/Vertex) |
+
+#### Integración
+
+| Variable | Descripción |
+|----------|-------------|
+| `HTTP_PROXY` / `HTTPS_PROXY` | Proxies de red para conexiones externas |
+| `MCP_TIMEOUT` | Timeout para conexiones a servidores MCP |
+| `CLAUDE_CODE_IDE_HOST_OVERRIDE` | Host IDE personalizado |
+
+### Agregar cualquier variable manualmente
+
+Añade cualquier variable en la configuración de tu proveedor en `~/.claude-providers-hub/providers.yaml`:
+
+```yaml
+providers:
+  glm:
+    models:
+      glm-51:
+        env:
+          CLAUDE_CODE_MAX_OUTPUT_TOKENS: "32000"
+          BASH_DEFAULT_TIMEOUT_MS: "30000"
+          DISABLE_TELEMETRY: "1"
+```
+
+Luego regenera el wrapper:
+
+```bash
+npx github:bioodev/claude-code-providers-hub
+# Elige: "Update models only"
+```
+
 ## Actualizar tu clave API
 
 Vuelve a ejecutar el instalador y elige "Update API key only":

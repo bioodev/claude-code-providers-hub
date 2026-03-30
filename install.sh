@@ -892,36 +892,157 @@ cleanup_orphaned_wrappers() {
 
     echo ""
     echo "Found orphaned installations from previous versions:"
-    echo "$orphans" | node -p "JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).map(i => '  - ' + i.alias + ' (' + i.provider + '/' + i.model_id + ')').join('\n')" 2>/dev/null
+    echo "$orphans" | node -p "JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).map(i => '  - ' + i.alias + ' (' + i.provider + '/' + i.model_id + ')').join('\n')" 2>/dev/null || true
     echo ""
 
     read -p "Remove orphaned installations? (y/N): " orphan_choice
     if [ "$orphan_choice" = "y" ] || [ "$orphan_choice" = "Y" ]; then
         # Remove wrapper files
-        echo "$orphans" | node -p "JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).map(i => i.wrapper_path).join('\n')" 2>/dev/null | while read wpath; do
-            [ -n "$wpath" ] && [ -f "$wpath" ] && rm -f "$wpath" && echo "  Removed wrapper: $wpath"
-        done
+        local wrapper_paths
+        wrapper_paths=$(echo "$orphans" | node -p "JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).map(i => i.wrapper_path).join('\n')" 2>/dev/null) || true
+        while IFS= read -r wpath; do
+            if [ -n "$wpath" ] && [ -f "$wpath" ]; then
+                rm -f "$wpath" && echo "  Removed wrapper: $wpath"
+            fi
+        done <<< "$wrapper_paths"
 
         # Remove config directories
-        echo "$orphans" | node -p "JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).map(i => i.config_dir).join('\n')" 2>/dev/null | while read cpath; do
-            [ -n "$cpath" ] && [ -d "$cpath" ] && rm -rf "$cpath" && echo "  Removed config: $cpath"
-        done
+        local config_dirs
+        config_dirs=$(echo "$orphans" | node -p "JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).map(i => i.config_dir).join('\n')" 2>/dev/null) || true
+        while IFS= read -r cpath; do
+            if [ -n "$cpath" ] && [ -d "$cpath" ]; then
+                rm -rf "$cpath" && echo "  Removed config: $cpath"
+            fi
+        done <<< "$config_dirs"
 
         # Remove aliases
         local orphan_aliases
-        orphan_aliases=$(echo "$orphans" | node -p "JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).map(i => i.alias).filter(Boolean).join(' ')" 2>/dev/null)
+        orphan_aliases=$(echo "$orphans" | node -p "JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).map(i => i.alias).filter(Boolean).join(' ')" 2>/dev/null) || true
         if [ -n "$orphan_aliases" ]; then
             remove_aliases_from_shell $orphan_aliases
         fi
 
         # Remove from state
-        echo "$orphans" | node -p "JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).map(i => i.provider + ' ' + i.model_id).join('\n')" 2>/dev/null | while read provider model; do
-            [ -n "$provider" ] && [ -n "$model" ] && node "$CONFIG_LOADER" remove-wrapper "$provider" "$model" 2>/dev/null
-        done
+        local state_entries
+        state_entries=$(echo "$orphans" | node -p "JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).map(i => i.provider + ' ' + i.model_id).join('\n')" 2>/dev/null) || true
+        while IFS= read -r entry; do
+            local provider model
+            provider=$(echo "$entry" | cut -d' ' -f1)
+            model=$(echo "$entry" | cut -d' ' -f2-)
+            if [ -n "$provider" ] && [ -n "$model" ]; then
+                node "$CONFIG_LOADER" remove-wrapper "$provider" "$model" 2>/dev/null || true
+            fi
+        done <<< "$state_entries"
 
         echo ""
         echo "✅ Orphaned installations cleaned up."
     fi
+}
+
+# Configure advanced environment variables for a provider (interactive menu)
+# Usage: configure_advanced_options <provider> <"model1 model2..."> <display_name>
+configure_advanced_options() {
+    local provider="$1"
+    local model_ids="$2"
+    local display_name="$3"
+    local first_model
+    first_model=$(echo "$model_ids" | awk '{print $1}')
+
+    echo ""
+    read -p "Configure advanced options for $display_name? (y/N): " adv_choice
+    [ "$adv_choice" != "y" ] && [ "$adv_choice" != "Y" ] && return
+
+    # Read current custom env values from state.json
+    local custom_json
+    custom_json=$(node "$CONFIG_LOADER" get-custom-env "$provider" "$first_model" 2>/dev/null) || custom_json="{}"
+
+    local telemetry_state auto_update_state max_tokens_val bash_timeout_val
+    telemetry_state=$(echo "$custom_json" | node -p "var d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));d.DISABLE_TELEMETRY==='1'?'ON':'OFF'" 2>/dev/null) || telemetry_state="OFF"
+    auto_update_state=$(echo "$custom_json" | node -p "var d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));d.CLAUDE_CODE_DISABLE_AUTO_UPDATES==='1'?'ON':'OFF'" 2>/dev/null) || auto_update_state="OFF"
+    max_tokens_val=$(echo "$custom_json" | node -p "var d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));d.CLAUDE_CODE_MAX_OUTPUT_TOKENS||'default'" 2>/dev/null) || max_tokens_val="default"
+    bash_timeout_val=$(echo "$custom_json" | node -p "var d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));d.BASH_DEFAULT_TIMEOUT_MS||'default'" 2>/dev/null) || bash_timeout_val="default"
+
+    while true; do
+        echo ""
+        echo "── Advanced Options: $display_name ──────────────────────────"
+        echo "1) Disable telemetry/tracking    [$telemetry_state]"
+        echo "2) Disable auto-updates          [$auto_update_state]"
+        echo "3) Max output tokens             [$max_tokens_val]"
+        echo "4) Bash command timeout (ms)     [$bash_timeout_val]"
+        echo "5) Done"
+        read -p "Choice (1-5): " adv_opt
+
+        case "$adv_opt" in
+            1)
+                if [ "$telemetry_state" = "OFF" ]; then
+                    telemetry_state="ON"
+                else
+                    telemetry_state="OFF"
+                fi
+                ;;
+            2)
+                if [ "$auto_update_state" = "OFF" ]; then
+                    auto_update_state="ON"
+                else
+                    auto_update_state="OFF"
+                fi
+                ;;
+            3)
+                read -p "Max output tokens (e.g. 32000, max 64000; Enter=clear): " tok_input
+                if [ -n "$tok_input" ]; then
+                    max_tokens_val="$tok_input"
+                else
+                    max_tokens_val="default"
+                fi
+                ;;
+            4)
+                read -p "Bash timeout in ms (e.g. 30000; Enter=clear): " timeout_input
+                if [ -n "$timeout_input" ]; then
+                    bash_timeout_val="$timeout_input"
+                else
+                    bash_timeout_val="default"
+                fi
+                ;;
+            5)
+                break
+                ;;
+        esac
+    done
+
+    # Save settings to all model IDs for this provider
+    for model_id in $model_ids; do
+        # Telemetry: sets DISABLE_TELEMETRY + DISABLE_ERROR_REPORTING together
+        if [ "$telemetry_state" = "ON" ]; then
+            node "$CONFIG_LOADER" set-custom-env "$provider" "$model_id" DISABLE_TELEMETRY 1 2>/dev/null || true
+            node "$CONFIG_LOADER" set-custom-env "$provider" "$model_id" DISABLE_ERROR_REPORTING 1 2>/dev/null || true
+        else
+            node "$CONFIG_LOADER" remove-custom-env "$provider" "$model_id" DISABLE_TELEMETRY 2>/dev/null || true
+            node "$CONFIG_LOADER" remove-custom-env "$provider" "$model_id" DISABLE_ERROR_REPORTING 2>/dev/null || true
+        fi
+
+        # Auto-updates
+        if [ "$auto_update_state" = "ON" ]; then
+            node "$CONFIG_LOADER" set-custom-env "$provider" "$model_id" CLAUDE_CODE_DISABLE_AUTO_UPDATES 1 2>/dev/null || true
+        else
+            node "$CONFIG_LOADER" remove-custom-env "$provider" "$model_id" CLAUDE_CODE_DISABLE_AUTO_UPDATES 2>/dev/null || true
+        fi
+
+        # Max output tokens
+        if [ "$max_tokens_val" != "default" ]; then
+            node "$CONFIG_LOADER" set-custom-env "$provider" "$model_id" CLAUDE_CODE_MAX_OUTPUT_TOKENS "$max_tokens_val" 2>/dev/null || true
+        else
+            node "$CONFIG_LOADER" remove-custom-env "$provider" "$model_id" CLAUDE_CODE_MAX_OUTPUT_TOKENS 2>/dev/null || true
+        fi
+
+        # Bash timeout
+        if [ "$bash_timeout_val" != "default" ]; then
+            node "$CONFIG_LOADER" set-custom-env "$provider" "$model_id" BASH_DEFAULT_TIMEOUT_MS "$bash_timeout_val" 2>/dev/null || true
+        else
+            node "$CONFIG_LOADER" remove-custom-env "$provider" "$model_id" BASH_DEFAULT_TIMEOUT_MS 2>/dev/null || true
+        fi
+    done
+
+    echo "✅ Advanced options saved for $display_name."
 }
 
 # Create shell aliases
@@ -1020,7 +1141,7 @@ main() {
         local config_status
         config_status=$(node "$CONFIG_LOADER" check-config-version 2>/dev/null)
         local needs_update
-        needs_update=$(echo "$config_status" | node -p "JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).needsUpdate" 2>/dev/null)
+        needs_update=$(echo "$config_status" | node -p "JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).needsUpdate" 2>/dev/null) || true
         if [ "$needs_update" = "true" ]; then
             echo ""
             echo "⚠️  Your providers.yaml is outdated (new providers/models available)."
@@ -1064,6 +1185,19 @@ main() {
                 fi
                 if [ -f "$USER_BIN_DIR/ccd" ]; then
                     DEEPSEEK_API_KEY=$(grep "ANTHROPIC_AUTH_TOKEN=" "$USER_BIN_DIR/ccd" | sed 's/export ANTHROPIC_AUTH_TOKEN="//; s/"$//')
+                fi
+
+                # Offer advanced options before regenerating wrappers
+                if [ -f "$CONFIG_LOADER" ]; then
+                    if [ -n "$ZAI_API_KEY" ]; then
+                        configure_advanced_options "glm" "glm-51 glm-fast" "Z.AI GLM"
+                    fi
+                    if [ -n "$MINIMAX_API_KEY" ]; then
+                        configure_advanced_options "minimax" "default" "MiniMax"
+                    fi
+                    if [ -n "$DEEPSEEK_API_KEY" ]; then
+                        configure_advanced_options "deepseek" "default" "DeepSeek"
+                    fi
                 fi
 
                 # Regenerate wrappers with new models
@@ -1172,6 +1306,25 @@ main() {
             echo "✅ DeepSeek API key received (${#input_key} characters)"
         else
             echo "⚠️  No DeepSeek API key provided. Add it manually later."
+        fi
+    fi
+
+    # Advanced options per selected provider (optional, interactive)
+    if [ -f "$CONFIG_LOADER" ]; then
+        if [ "$provider_choice" = "1" ] || [ "$provider_choice" = "4" ] || [ "$provider_choice" = "5" ]; then
+            if [ -n "$ZAI_API_KEY" ]; then
+                configure_advanced_options "glm" "glm-51 glm-fast" "Z.AI GLM"
+            fi
+        fi
+        if [ "$provider_choice" = "2" ] || [ "$provider_choice" = "4" ] || [ "$provider_choice" = "5" ]; then
+            if [ -n "$MINIMAX_API_KEY" ]; then
+                configure_advanced_options "minimax" "default" "MiniMax"
+            fi
+        fi
+        if [ "$provider_choice" = "3" ] || [ "$provider_choice" = "4" ] || [ "$provider_choice" = "5" ]; then
+            if [ -n "$DEEPSEEK_API_KEY" ]; then
+                configure_advanced_options "deepseek" "default" "DeepSeek"
+            fi
         fi
     fi
 
