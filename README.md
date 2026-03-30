@@ -8,13 +8,16 @@ Each provider runs in a fully isolated environment: separate config directory, s
 
 ## Available Providers
 
-| Command | Provider | Model | Best for |
-|---------|----------|-------|----------|
-| `ccg` | Z.AI | GLM-5.1 | Best quality GLM, complex tasks |
-| `ccf` | Z.AI | GLM-4.5-Air | Faster responses, lower cost |
+| Command | Provider | Models (Opus/Sonnet/Haiku) | Best for |
+|---------|----------|---------------------------|----------|
+| `ccg` | Z.AI | GLM MAX: glm-5.1 / glm-5-turbo / glm-4.7 | Maximum power, complex tasks (3× quota at peak) |
+| `ccgs` | Z.AI | GLM Standard: glm-5-turbo / glm-4.7 / glm-4.6 | Balanced power/cost (mixed) |
+| `ccf` | Z.AI | GLM Fast: glm-4.7 / glm-4.6 / glm-4.5-air | Maximum savings, 4.x only (always 1× quota) |
 | `ccm` | MiniMax | MiniMax-M2 | MiniMax tasks |
 | `ccd` | DeepSeek | deepseek-chat | Coding-focused tasks |
 | `cc` | Anthropic | Claude | Your original setup (unchanged) |
+
+> **Quota note:** Z.AI 5.x models use a 3× multiplier at peak hours (2× off-peak). All 4.x models always cost 1×.
 
 ## Requirements
 
@@ -76,8 +79,9 @@ Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
 ## Usage
 
 ```bash
-ccg                        # Open Claude Code with GLM-5.1
-ccf                        # Open Claude Code with GLM-4.5-Air
+ccg                        # Open Claude Code with GLM MAX (glm-5.1/glm-5-turbo/glm-4.7)
+ccgs                       # Open Claude Code with GLM Standard (glm-5-turbo/glm-4.7/glm-4.6)
+ccf                        # Open Claude Code with GLM Fast (glm-4.7/glm-4.6/glm-4.5-air)
 ccm                        # Open Claude Code with MiniMax-M2
 ccd                        # Open Claude Code with DeepSeek-chat
 cc                         # Open Claude Code with Anthropic (default)
@@ -108,10 +112,13 @@ Config directories are kept separate so chat histories and settings never mix:
 | Command | Config Directory |
 |---------|-----------------|
 | `ccg` | `~/.claude-glm/` |
+| `ccgs` | `~/.claude-glm-standard/` |
 | `ccf` | `~/.claude-glm-fast/` |
 | `ccm` | `~/.claude-minimax/` |
 | `ccd` | `~/.claude-deepseek/` |
 | `cc` | `~/.claude/` (your original, never modified) |
+
+> **Note:** Each config directory contains a `settings.json` file that is regenerated every time the wrapper runs — it always reflects the current configuration.
 
 On Windows, replace `~/` with `%USERPROFILE%\`.
 
@@ -223,7 +230,7 @@ The uninstaller will:
 
 When you re-run the installer over an existing installation, it automatically:
 
-1. **Detects orphaned installations** — wrappers and config directories from providers or models that no longer exist in the current config (e.g., from previous model versions), and offers to remove them
+1. **Detects orphaned installations** — wrappers and config directories from providers or models that no longer exist in the current config (e.g., from previous model versions), and offers to remove them. Note: only wrappers recorded in `state.json` are detected; wrappers installed before v3.0.0 may need to be removed manually from `~/.local/bin/`.
 2. **Checks config version** — if your `providers.yaml` is outdated (new providers/models shipped), offers to update it from defaults (API keys in `state.json` are preserved, a `.bak` backup is created)
 
 ## Updating Your API Key

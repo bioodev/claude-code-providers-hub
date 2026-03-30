@@ -8,13 +8,16 @@ Cada proveedor corre en un entorno completamente aislado: directorio de configur
 
 ## Proveedores disponibles
 
-| Comando | Proveedor | Modelo | Ideal para |
-|---------|-----------|--------|------------|
-| `ccg` | Z.AI | GLM-5.1 | Mejor calidad GLM, tareas complejas |
-| `ccf` | Z.AI | GLM-4.5-Air | Respuestas rápidas, menor costo |
+| Comando | Proveedor | Modelos (Opus/Sonnet/Haiku) | Ideal para |
+|---------|-----------|----------------------------|------------|
+| `ccg` | Z.AI | GLM MAX: glm-5.1 / glm-5-turbo / glm-4.7 | Máxima potencia, tareas complejas (3× cuota en hora pico) |
+| `ccgs` | Z.AI | GLM Standard: glm-5-turbo / glm-4.7 / glm-4.6 | Balance potencia/costo (mixto) |
+| `ccf` | Z.AI | GLM Fast: glm-4.7 / glm-4.6 / glm-4.5-air | Máximo ahorro, solo 4.x (siempre 1× cuota) |
 | `ccm` | MiniMax | MiniMax-M2 | Tareas con MiniMax |
 | `ccd` | DeepSeek | deepseek-chat | Tareas enfocadas en código |
 | `cc` | Anthropic | Claude | Tu configuración original (sin cambios) |
+
+> **Nota de cuota:** Los modelos 5.x de Z.AI usan multiplicador 3× en hora pico (2× en valle). Los modelos 4.x siempre cuestan 1×.
 
 ## Requisitos
 
@@ -76,8 +79,9 @@ Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
 ## Uso
 
 ```bash
-ccg                        # Claude Code con GLM-5.1
-ccf                        # Claude Code con GLM-4.5-Air
+ccg                        # Claude Code con GLM MAX (glm-5.1/glm-5-turbo/glm-4.7)
+ccgs                       # Claude Code con GLM Standard (glm-5-turbo/glm-4.7/glm-4.6)
+ccf                        # Claude Code con GLM Fast (glm-4.7/glm-4.6/glm-4.5-air)
 ccm                        # Claude Code con MiniMax-M2
 ccd                        # Claude Code con DeepSeek-chat
 cc                         # Claude Code con Anthropic (por defecto)
@@ -108,10 +112,13 @@ Los directorios de configuración se mantienen separados para que los historiale
 | Comando | Directorio de configuración |
 |---------|-----------------------------|
 | `ccg` | `~/.claude-glm/` |
+| `ccgs` | `~/.claude-glm-standard/` |
 | `ccf` | `~/.claude-glm-fast/` |
 | `ccm` | `~/.claude-minimax/` |
 | `ccd` | `~/.claude-deepseek/` |
 | `cc` | `~/.claude/` (tu configuración original, nunca modificada) |
+
+> **Nota:** Cada directorio contiene un `settings.json` que se regenera automáticamente cada vez que ejecutas el wrapper — siempre refleja la configuración actual.
 
 En Windows, reemplaza `~/` por `%USERPROFILE%\`.
 
@@ -240,7 +247,7 @@ El desinstalador:
 ## Reinstalación y limpieza
 
 Al reinstalar, el instalador detecta automáticamente:
-- **Instalaciones huérfanas** — wrappers/configs de providers o modelos que ya no existen en la configuración actual (ej: versiones anteriores de modelos), y ofrece eliminarlos
+- **Instalaciones huérfanas** — wrappers/configs de providers o modelos que ya no existen en la configuración actual (ej: versiones anteriores de modelos), y ofrece eliminarlos. Nota: solo se detectan wrappers registrados en `state.json`; los instalados antes de v3.0.0 pueden requerir eliminación manual desde `~/.local/bin/`.
 - **Configuración desactualizada** — si tu `providers.yaml` tiene una versión vieja, ofrece actualizarla desde los defaults (con backup `.bak`)
 
 ## Solución de problemas

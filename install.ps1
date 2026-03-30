@@ -33,6 +33,7 @@ $ConfigLoader = Join-Path $PSScriptRoot "lib\config-loader.js"
 
 # Legacy config directories (for backward compatibility)
 $GlmConfigDir = "$env:USERPROFILE\.claude-glm"
+$GlmStandardConfigDir = "$env:USERPROFILE\.claude-glm-standard"
 $GlmFastConfigDir = "$env:USERPROFILE\.claude-glm-fast"
 $MiniMaxConfigDir = "$env:USERPROFILE\.claude-minimax"
 $DeepSeekConfigDir = "$env:USERPROFILE\.claude-deepseek"
@@ -75,17 +76,24 @@ function Get-ProviderVars {
             $script:BaseUrl = "https://api.z.ai/api/anthropic"
             switch ($Model) {
                 "glm-51" {
-                    $script:ModelName = "glm-5.1"
+                    $script:ModelName = "GLM MAX"
                     $script:ConfigDir = $GlmConfigDir
                     $script:ANTHROPIC_DEFAULT_OPUS_MODEL = "glm-5.1"
-                    $script:ANTHROPIC_DEFAULT_SONNET_MODEL = "glm-5.1"
-                    $script:ANTHROPIC_DEFAULT_HAIKU_MODEL = "glm-4.5-air"
+                    $script:ANTHROPIC_DEFAULT_SONNET_MODEL = "glm-5-turbo"
+                    $script:ANTHROPIC_DEFAULT_HAIKU_MODEL = "glm-4.7"
+                }
+                "glm-standard" {
+                    $script:ModelName = "GLM Standard"
+                    $script:ConfigDir = $GlmStandardConfigDir
+                    $script:ANTHROPIC_DEFAULT_OPUS_MODEL = "glm-5-turbo"
+                    $script:ANTHROPIC_DEFAULT_SONNET_MODEL = "glm-4.7"
+                    $script:ANTHROPIC_DEFAULT_HAIKU_MODEL = "glm-4.6"
                 }
                 "glm-fast" {
-                    $script:ModelName = "glm-4.5-air"
+                    $script:ModelName = "GLM Fast"
                     $script:ConfigDir = $GlmFastConfigDir
-                    $script:ANTHROPIC_DEFAULT_OPUS_MODEL = "glm-4.5-air"
-                    $script:ANTHROPIC_DEFAULT_SONNET_MODEL = "glm-4.5-air"
+                    $script:ANTHROPIC_DEFAULT_OPUS_MODEL = "glm-4.7"
+                    $script:ANTHROPIC_DEFAULT_SONNET_MODEL = "glm-4.6"
                     $script:ANTHROPIC_DEFAULT_HAIKU_MODEL = "glm-4.5-air"
                 }
             }
@@ -276,6 +284,7 @@ function Add-PowerShellAliases {
         $_ -notmatch "# Claude Code Model Switcher Aliases" -and
         $_ -notmatch "Set-Alias cc " -and
         $_ -notmatch "Set-Alias ccg " -and
+        $_ -notmatch "Set-Alias ccgs " -and
         $_ -notmatch "Set-Alias ccf " -and
         $_ -notmatch "Set-Alias ccm " -and
         $_ -notmatch "Set-Alias ccd "
@@ -287,6 +296,7 @@ function Add-PowerShellAliases {
 # Claude Code Model Switcher Aliases
 Set-Alias cc claude
 Set-Alias ccg claude-glm
+Set-Alias ccgs claude-glm-standard
 Set-Alias ccf claude-glm-fast
 Set-Alias ccm ccm
 Set-Alias ccd ccd
@@ -298,20 +308,19 @@ Set-Alias ccd ccd
     Write-Host "OK: Added aliases to PowerShell profile: $PROFILE"
 }
 
-# Create the GLM-5.1 wrapper
+# Create the GLM MAX wrapper (glm-5.1/glm-5-turbo/glm-4.7)
 function New-ClaudeGlmWrapper {
     $wrapperPath = Join-Path $UserBinDir "claude-glm.ps1"
 
-    # Build wrapper content using array and join to avoid nested here-strings
     $wrapperContent = @(
-        '# Claude-GLM - Claude Code with Z.AI GLM-5.1 (Standard Model)',
+        '# Claude-GLM - Claude Code with Z.AI GLM MAX',
         '',
         '# Set Z.AI environment variables',
         '$env:ANTHROPIC_BASE_URL = "https://api.z.ai/api/anthropic"',
         "`$env:ANTHROPIC_AUTH_TOKEN = `"$ZaiApiKey`"",
         '$env:ANTHROPIC_DEFAULT_OPUS_MODEL = "glm-5.1"',
-        '$env:ANTHROPIC_DEFAULT_SONNET_MODEL = "glm-5.1"',
-        '$env:ANTHROPIC_DEFAULT_HAIKU_MODEL = "glm-4.5-air"',
+        '$env:ANTHROPIC_DEFAULT_SONNET_MODEL = "glm-5-turbo"',
+        '$env:ANTHROPIC_DEFAULT_HAIKU_MODEL = "glm-4.7"',
         '$env:API_TIMEOUT_MS = "600000"',
         '$env:CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC = "1"',
         '',
@@ -323,12 +332,12 @@ function New-ClaudeGlmWrapper {
         '    New-Item -ItemType Directory -Path $env:CLAUDE_HOME -Force | Out-Null',
         '}',
         '',
-        '# Create/update settings file with GLM configuration',
-        '$settingsJson = "{`"env`":{`"ANTHROPIC_BASE_URL`":`"https://api.z.ai/api/anthropic`",`"ANTHROPIC_AUTH_TOKEN`":`"' + $ZaiApiKey + '`",`"ANTHROPIC_DEFAULT_OPUS_MODEL`":`"glm-5.1`",`"ANTHROPIC_DEFAULT_SONNET_MODEL`":`"glm-5.1`",`"ANTHROPIC_DEFAULT_HAIKU_MODEL`":`"glm-4.5-air`",`"API_TIMEOUT_MS`":`"600000`",`"CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC`":`"1`"}}"',
+        '# Create/update settings file',
+        '$settingsJson = "{`"env`":{`"ANTHROPIC_BASE_URL`":`"https://api.z.ai/api/anthropic`",`"ANTHROPIC_AUTH_TOKEN`":`"' + $ZaiApiKey + '`",`"ANTHROPIC_DEFAULT_OPUS_MODEL`":`"glm-5.1`",`"ANTHROPIC_DEFAULT_SONNET_MODEL`":`"glm-5-turbo`",`"ANTHROPIC_DEFAULT_HAIKU_MODEL`":`"glm-4.7`",`"API_TIMEOUT_MS`":`"600000`",`"CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC`":`"1`"}}"',
         'Set-Content -Path (Join-Path $env:CLAUDE_HOME "settings.json") -Value $settingsJson',
         '',
         '# Launch Claude Code with custom config',
-        'Write-Host "LAUNCH: Starting Claude Code with GLM-5.1 (Standard Model)..."',
+        'Write-Host "LAUNCH: Starting Claude Code with GLM MAX (3x quota)..."',
         'Write-Host "CONFIG: Config directory: $env:CLAUDE_HOME"',
         'Write-Host ""',
         '',
@@ -348,17 +357,68 @@ function New-ClaudeGlmWrapper {
     if (Test-Path $ConfigLoader) { node $ConfigLoader record-wrapper "glm" "glm-51" $wrapperPath "$env:USERPROFILE\.claude-glm" "ccg" 2>$null }
 }
 
-# Create the fast GLM-4.5-Air wrapper
-function New-ClaudeGlmFastWrapper {
-    $wrapperPath = Join-Path $UserBinDir "claude-glm-fast.ps1"
+# Create the GLM Standard wrapper (glm-5-turbo/glm-4.7/glm-4.6)
+function New-ClaudeGlmStandardWrapper {
+    $wrapperPath = Join-Path $UserBinDir "claude-glm-standard.ps1"
 
-    # Build wrapper content using array and join to avoid nested here-strings
     $wrapperContent = @(
-        '# Claude-GLM-Fast - Claude Code with Z.AI GLM-4.5-Air (Fast Model)',
+        '# Claude-GLM-Standard - Claude Code with Z.AI GLM Standard',
         '',
         '# Set Z.AI environment variables',
         '$env:ANTHROPIC_BASE_URL = "https://api.z.ai/api/anthropic"',
         "`$env:ANTHROPIC_AUTH_TOKEN = `"$ZaiApiKey`"",
+        '$env:ANTHROPIC_DEFAULT_OPUS_MODEL = "glm-5-turbo"',
+        '$env:ANTHROPIC_DEFAULT_SONNET_MODEL = "glm-4.7"',
+        '$env:ANTHROPIC_DEFAULT_HAIKU_MODEL = "glm-4.6"',
+        '$env:API_TIMEOUT_MS = "600000"',
+        '$env:CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC = "1"',
+        '',
+        '# Use custom config directory to avoid conflicts',
+        "`$env:CLAUDE_HOME = `"$GlmStandardConfigDir`"",
+        '',
+        '# Create config directory if it doesn''t exist',
+        'if (-not (Test-Path $env:CLAUDE_HOME)) {',
+        '    New-Item -ItemType Directory -Path $env:CLAUDE_HOME -Force | Out-Null',
+        '}',
+        '',
+        '# Create/update settings file',
+        '$settingsJson = "{`"env`":{`"ANTHROPIC_BASE_URL`":`"https://api.z.ai/api/anthropic`",`"ANTHROPIC_AUTH_TOKEN`":`"' + $ZaiApiKey + '`",`"ANTHROPIC_DEFAULT_OPUS_MODEL`":`"glm-5-turbo`",`"ANTHROPIC_DEFAULT_SONNET_MODEL`":`"glm-4.7`",`"ANTHROPIC_DEFAULT_HAIKU_MODEL`":`"glm-4.6`",`"API_TIMEOUT_MS`":`"600000`",`"CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC`":`"1`"}}"',
+        'Set-Content -Path (Join-Path $env:CLAUDE_HOME "settings.json") -Value $settingsJson',
+        '',
+        '# Launch Claude Code with custom config',
+        'Write-Host "STANDARD: Starting Claude Code with GLM Standard (balanced)..."',
+        'Write-Host "CONFIG: Config directory: $env:CLAUDE_HOME"',
+        'Write-Host ""',
+        '',
+        '# Check if claude exists',
+        'if (-not (Get-Command claude -ErrorAction SilentlyContinue)) {',
+        '    Write-Host "ERROR: ''claude'' command not found!"',
+        '    Write-Host "Please ensure Claude Code is installed and in your PATH"',
+        '    exit 1',
+        '}',
+        '',
+        '# Run the actual claude command',
+        '& claude $args'
+    ) -join "`n"
+
+    Set-Content -Path $wrapperPath -Value $wrapperContent
+    Write-Host "OK: Installed claude-glm-standard at $wrapperPath" -ForegroundColor Green
+    if (Test-Path $ConfigLoader) { node $ConfigLoader record-wrapper "glm" "glm-standard" $wrapperPath "$env:USERPROFILE\.claude-glm-standard" "ccgs" 2>$null }
+}
+
+# Create the GLM Fast wrapper (glm-4.7/glm-4.6/glm-4.5-air, 1x quota always)
+function New-ClaudeGlmFastWrapper {
+    $wrapperPath = Join-Path $UserBinDir "claude-glm-fast.ps1"
+
+    $wrapperContent = @(
+        '# Claude-GLM-Fast - Claude Code with Z.AI GLM Fast (1x quota)',
+        '',
+        '# Set Z.AI environment variables',
+        '$env:ANTHROPIC_BASE_URL = "https://api.z.ai/api/anthropic"',
+        "`$env:ANTHROPIC_AUTH_TOKEN = `"$ZaiApiKey`"",
+        '$env:ANTHROPIC_DEFAULT_OPUS_MODEL = "glm-4.7"',
+        '$env:ANTHROPIC_DEFAULT_SONNET_MODEL = "glm-4.6"',
+        '$env:ANTHROPIC_DEFAULT_HAIKU_MODEL = "glm-4.5-air"',
         '$env:API_TIMEOUT_MS = "600000"',
         '$env:CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC = "1"',
         '',
@@ -370,12 +430,12 @@ function New-ClaudeGlmFastWrapper {
         '    New-Item -ItemType Directory -Path $env:CLAUDE_HOME -Force | Out-Null',
         '}',
         '',
-        '# Create/update settings file with GLM-Air configuration',
-        '$settingsJson = "{`"env`":{`"ANTHROPIC_BASE_URL`":`"https://api.z.ai/api/anthropic`",`"ANTHROPIC_AUTH_TOKEN`":`"' + $ZaiApiKey + '`",`"ANTHROPIC_DEFAULT_OPUS_MODEL`":`"glm-4.5-air`",`"ANTHROPIC_DEFAULT_SONNET_MODEL`":`"glm-4.5-air`",`"ANTHROPIC_DEFAULT_HAIKU_MODEL`":`"glm-4.5-air`",`"API_TIMEOUT_MS`":`"600000`",`"CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC`":`"1`"}}"',
+        '# Create/update settings file',
+        '$settingsJson = "{`"env`":{`"ANTHROPIC_BASE_URL`":`"https://api.z.ai/api/anthropic`",`"ANTHROPIC_AUTH_TOKEN`":`"' + $ZaiApiKey + '`",`"ANTHROPIC_DEFAULT_OPUS_MODEL`":`"glm-4.7`",`"ANTHROPIC_DEFAULT_SONNET_MODEL`":`"glm-4.6`",`"ANTHROPIC_DEFAULT_HAIKU_MODEL`":`"glm-4.5-air`",`"API_TIMEOUT_MS`":`"600000`",`"CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC`":`"1`"}}"',
         'Set-Content -Path (Join-Path $env:CLAUDE_HOME "settings.json") -Value $settingsJson',
         '',
         '# Launch Claude Code with custom config',
-        'Write-Host "FAST: Starting Claude Code with GLM-4.5-Air (Fast Model)..."',
+        'Write-Host "FAST: Starting Claude Code with GLM Fast (1x quota)..."',
         'Write-Host "CONFIG: Config directory: $env:CLAUDE_HOME"',
         'Write-Host ""',
         '',
@@ -499,9 +559,9 @@ function Remove-UnselectedWrappers {
     )
 
     # Define all possible wrappers and their config directories
-    $glmWrappers = @("claude-glm.ps1", "claude-glm-fast.ps1")
-    $glmConfigs = @("$env:USERPROFILE\.claude-glm", "$env:USERPROFILE\.claude-glm-fast")
-    $glmAliases = @("ccg", "ccf")
+    $glmWrappers = @("claude-glm.ps1", "claude-glm-standard.ps1", "claude-glm-fast.ps1")
+    $glmConfigs = @("$env:USERPROFILE\.claude-glm", "$env:USERPROFILE\.claude-glm-standard", "$env:USERPROFILE\.claude-glm-fast")
+    $glmAliases = @("ccg", "ccgs", "ccf")
 
     $minimaxWrappers = @("ccm.ps1")
     $minimaxConfigs = @("$env:USERPROFILE\.claude-minimax")
@@ -1122,7 +1182,7 @@ function Install-ClaudeGlm {
 
                 # Offer advanced options before regenerating wrappers
                 if (Test-Path $ConfigLoader) {
-                    if ($script:ZaiApiKey) { Set-AdvancedOptions -ProviderName "glm" -ModelIds @("glm-51","glm-fast") -DisplayName "Z.AI GLM" }
+                    if ($script:ZaiApiKey) { Set-AdvancedOptions -ProviderName "glm" -ModelIds @("glm-51","glm-standard","glm-fast") -DisplayName "Z.AI GLM" }
                     if ($script:MiniMaxApiKey) { Set-AdvancedOptions -ProviderName "minimax" -ModelIds @("default") -DisplayName "MiniMax" }
                     if ($script:DeepSeekApiKey) { Set-AdvancedOptions -ProviderName "deepseek" -ModelIds @("default") -DisplayName "DeepSeek" }
                 }
@@ -1130,8 +1190,9 @@ function Install-ClaudeGlm {
                 # Regenerate wrappers with new models
                 if ($script:ZaiApiKey) {
                     New-ClaudeGlmWrapper
+                    New-ClaudeGlmStandardWrapper
                     New-ClaudeGlmFastWrapper
-                    Write-Host "OK: GLM models updated to GLM-5.1!"
+                    Write-Host "OK: GLM models updated (MAX/Standard/Fast)!"
                 }
                 if ($script:MiniMaxApiKey) {
                     New-ClaudeMiniMaxWrapper
@@ -1148,7 +1209,7 @@ function Install-ClaudeGlm {
             }
             "2" {
                 Write-Host "Choose provider to update:"
-                Write-Host "1. Z.AI GLM (GLM-5.1, GLM-4.5-Air)"
+                Write-Host "1. Z.AI GLM (MAX/Standard/Fast)"
                 Write-Host "2. MiniMax (MiniMax-M2)"
                 $providerChoice = Read-Host "Provider (1-2)"
 
@@ -1157,6 +1218,7 @@ function Install-ClaudeGlm {
                     if ($inputKey) {
                         $script:ZaiApiKey = $inputKey
                         New-ClaudeGlmWrapper
+                        New-ClaudeGlmStandardWrapper
                         New-ClaudeGlmFastWrapper
                         Write-Host "OK: GLM API key updated!"
                     }
@@ -1182,7 +1244,7 @@ function Install-ClaudeGlm {
     # Get API keys
     Write-Host ""
     Write-Host "Choose which providers to install:"
-    Write-Host "1. Z.AI GLM only (GLM-5.1, GLM-4.5-Air)"
+    Write-Host "1. Z.AI GLM only (MAX/Standard/Fast)"
     Write-Host "2. MiniMax only (MiniMax-M2)"
     Write-Host "3. DeepSeek only (deepseek-chat)"
     Write-Host "4. All three providers"
@@ -1234,7 +1296,7 @@ function Install-ClaudeGlm {
     # Advanced options per selected provider (optional, interactive)
     if (Test-Path $ConfigLoader) {
         if ($providerChoice -eq "1" -or $providerChoice -eq "4" -or $providerChoice -eq "5") {
-            if ($script:ZaiApiKey) { Set-AdvancedOptions -ProviderName "glm" -ModelIds @("glm-51","glm-fast") -DisplayName "Z.AI GLM" }
+            if ($script:ZaiApiKey) { Set-AdvancedOptions -ProviderName "glm" -ModelIds @("glm-51","glm-standard","glm-fast") -DisplayName "Z.AI GLM" }
         }
         if ($providerChoice -eq "2" -or $providerChoice -eq "4" -or $providerChoice -eq "5") {
             if ($script:MiniMaxApiKey) { Set-AdvancedOptions -ProviderName "minimax" -ModelIds @("default") -DisplayName "MiniMax" }
@@ -1262,6 +1324,7 @@ function Install-ClaudeGlm {
     # Create wrappers
     if ($providerChoice -eq "1" -or $providerChoice -eq "4" -or $providerChoice -eq "5") {
         New-ClaudeGlmWrapper
+        New-ClaudeGlmStandardWrapper
         New-ClaudeGlmFastWrapper
     }
 
@@ -1292,8 +1355,9 @@ function Install-ClaudeGlm {
     Write-Host "Commands:"
 
     if ($providerChoice -eq "1" -or $providerChoice -eq "4" -or $providerChoice -eq "5") {
-        Write-Host "   claude-glm      - GLM-5.1 (latest)"
-        Write-Host "   claude-glm-fast - GLM-4.5-Air (fast)"
+        Write-Host "   claude-glm          - GLM MAX (glm-5.1/glm-5-turbo/glm-4.7)"
+        Write-Host "   claude-glm-standard - GLM Standard (glm-5-turbo/glm-4.7/glm-4.6)"
+        Write-Host "   claude-glm-fast     - GLM Fast (glm-4.7/glm-4.6/glm-4.5-air)"
     }
 
     if ($providerChoice -eq "2" -or $providerChoice -eq "4" -or $providerChoice -eq "5") {
@@ -1309,8 +1373,9 @@ function Install-ClaudeGlm {
     Write-Host "   cc    - claude (regular Claude)"
 
     if ($providerChoice -eq "1" -or $providerChoice -eq "4" -or $providerChoice -eq "5") {
-        Write-Host "   ccg   - claude-glm (GLM-5.1)"
-        Write-Host "   ccf   - claude-glm-fast"
+        Write-Host "   ccg   - claude-glm (GLM MAX)"
+        Write-Host "   ccgs  - claude-glm-standard (GLM Standard)"
+        Write-Host "   ccf   - claude-glm-fast (GLM Fast)"
     }
 
     if ($providerChoice -eq "2" -or $providerChoice -eq "4" -or $providerChoice -eq "5") {
@@ -1385,7 +1450,7 @@ function Uninstall-ClaudeGlm {
     Write-Host ""
 
     # Remove wrapper scripts
-    $wrapperFiles = @("claude-glm.ps1", "claude-glm-fast.ps1", "ccm.ps1", "ccd.ps1")
+    $wrapperFiles = @("claude-glm.ps1", "claude-glm-standard.ps1", "claude-glm-fast.ps1", "ccm.ps1", "ccd.ps1")
     $removedCount = 0
     foreach ($w in $wrapperFiles) {
         $wpath = Join-Path $UserBinDir $w
@@ -1399,6 +1464,7 @@ function Uninstall-ClaudeGlm {
     # Remove config directories (with confirmation)
     $configDirs = @(
         "$env:USERPROFILE\.claude-glm",
+        "$env:USERPROFILE\.claude-glm-standard",
         "$env:USERPROFILE\.claude-glm-fast",
         "$env:USERPROFILE\.claude-minimax",
         "$env:USERPROFILE\.claude-deepseek"
@@ -1417,7 +1483,7 @@ function Uninstall-ClaudeGlm {
     }
 
     # Remove aliases from PowerShell profile
-    $allAliases = @("cc", "ccg", "ccf", "ccm", "ccd")
+    $allAliases = @("cc", "ccg", "ccgs", "ccf", "ccm", "ccd")
     Remove-AliasesFromShell -AliasesToSearch $allAliases
     Write-Host "  Removed shell aliases."
 
