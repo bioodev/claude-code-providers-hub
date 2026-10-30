@@ -62,70 +62,6 @@ ZAI_API_KEY="YOUR_ZAI_API_KEY_HERE"
 # Ensure config directory exists
 mkdir -p "$PROVIDERS_HUB_DIR" 2>/dev/null || true
 
-# Function to load provider variables from YAML config
-load_provider_vars() {
-    local provider="$1"
-    local model="$2"
-    local api_key="$3"
-
-    # Try to use YAML config if available
-    if [ -f "$CONFIG_LOADER" ]; then
-        local output
-        output=$(node "$CONFIG_LOADER" export-bash "$provider" "$model" "$api_key" 2>&1)
-        if [ $? -eq 0 ]; then
-            eval "$output"
-            return 0
-        fi
-    fi
-
-    # Fallback to hardcoded values
-    case "$provider" in
-        glm)
-            case "$model" in
-                glm-51)
-                    BASE_URL="https://api.z.ai/api/anthropic"
-                    MODEL_NAME="glm-5.1"
-                    CONFIG_DIR="$HOME/.claude-glm"
-                    ANTHROPIC_DEFAULT_OPUS_MODEL="glm-5.1"
-                    ANTHROPIC_DEFAULT_SONNET_MODEL="glm-5.1"
-                    ANTHROPIC_DEFAULT_HAIKU_MODEL="glm-4.5-air"
-                    ;;
-                glm-fast)
-                    BASE_URL="https://api.z.ai/api/anthropic"
-                    MODEL_NAME="glm-4.5-air"
-                    CONFIG_DIR="$HOME/.claude-glm-fast"
-                    ANTHROPIC_DEFAULT_OPUS_MODEL="glm-4.5-air"
-                    ANTHROPIC_DEFAULT_SONNET_MODEL="glm-4.5-air"
-                    ANTHROPIC_DEFAULT_HAIKU_MODEL="glm-4.5-air"
-                    ;;
-            esac
-            ;;
-        deepseek)
-            BASE_URL="https://api.deepseek.com/anthropic"
-            MODEL_NAME="deepseek-chat"
-            CONFIG_DIR="$HOME/.claude-deepseek"
-            ANTHROPIC_DEFAULT_OPUS_MODEL="deepseek-chat"
-            ANTHROPIC_DEFAULT_SONNET_MODEL="deepseek-chat"
-            ANTHROPIC_DEFAULT_HAIKU_MODEL="deepseek-chat"
-            API_TIMEOUT_MS="600000"
-            CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC="1"
-            ;;
-        minimax)
-            BASE_URL="https://api.minimax.io/anthropic"
-            MODEL_NAME="MiniMax-M2"
-            CONFIG_DIR="$HOME/.claude-minimax"
-            ANTHROPIC_DEFAULT_SONNET_MODEL="MiniMax-M2"
-            ANTHROPIC_DEFAULT_OPUS_MODEL="MiniMax-M2"
-            ANTHROPIC_DEFAULT_HAIKU_MODEL="MiniMax-M2"
-            API_TIMEOUT_MS="3000000"
-            CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC="1"
-            ;;
-    esac
-
-    # Set API key variable
-    API_KEY="$api_key"
-}
-
 # Report installation errors to GitHub
 report_error() {
     local error_msg="$1"
@@ -411,411 +347,61 @@ setup_user_bin() {
     fi
 }
 
-# Create the standard GLM wrapper (uses GLM-5.1 from YAML config)
-create_claude_glm_wrapper() {
-    local wrapper_path="$USER_BIN_DIR/claude-glm"
+# Create a wrapper script for a provider/model.
+# Content, filename, alias and config dir are all derived from config-loader.js
+# (providers.yaml), so adding a model only requires editing the YAML.
+create_wrapper_for() {
+    local provider="$1"
+    local model_id="$2"
+    local api_key="$3"
 
-    # Try to use YAML config if available
-    if [ -f "$CONFIG_LOADER" ]; then
-        local model_id
-        model_id=$(node "$CONFIG_LOADER" get-default-model "glm" 2>/dev/null)
-        if [ -n "$model_id" ]; then
-            node "$CONFIG_LOADER" wrapper-bash "glm" "$model_id" "$ZAI_API_KEY" > "$wrapper_path" 2>/dev/null
-            if [ $? -eq 0 ]; then
-                chmod +x "$wrapper_path"
-                echo "✅ Installed claude-glm at $wrapper_path (from YAML config)"
-                [ -f "$CONFIG_LOADER" ] && node "$CONFIG_LOADER" record-wrapper "glm" "$model_id" "$wrapper_path" "$HOME/.claude-glm" "ccg" 2>/dev/null
-                return 0
-            fi
-        fi
+    if [ ! -f "$CONFIG_LOADER" ]; then
+        echo "❌ Error: config-loader.js not found at $CONFIG_LOADER"
+        return 1
     fi
 
-    # Fallback to hardcoded template
-    cat > "$wrapper_path" << EOF
-#!/bin/bash
-# Claude-GLM - Claude Code with Z.AI GLM-5.1 (Standard Model)
+    local wrapper_name alias config_dir wrapper_path
+    wrapper_name=$(node "$CONFIG_LOADER" get-wrapper-name "$provider" "$model_id" 2>/dev/null)
+    alias=$(node "$CONFIG_LOADER" get-alias "$provider" "$model_id" 2>/dev/null)
+    config_dir=$(node "$CONFIG_LOADER" get-config-dir "$provider" "$model_id" 2>/dev/null)
 
-# Set Z.AI environment variables
-export ANTHROPIC_BASE_URL="https://api.z.ai/api/anthropic"
-export ANTHROPIC_AUTH_TOKEN="$ZAI_API_KEY"
-export ANTHROPIC_DEFAULT_OPUS_MODEL="glm-5.1"
-export ANTHROPIC_DEFAULT_SONNET_MODEL="glm-5.1"
-export ANTHROPIC_DEFAULT_HAIKU_MODEL="glm-4.5-air"
-
-# Use custom config directory to avoid conflicts
-export CLAUDE_HOME="\$HOME/.claude-glm"
-
-# Create config directory if it doesn't exist
-mkdir -p "\$CLAUDE_HOME"
-
-# Create/update settings file with GLM configuration
-cat > "\$CLAUDE_HOME/settings.json" << SETTINGS
-{
-  "env": {
-    "ANTHROPIC_BASE_URL": "https://api.z.ai/api/anthropic",
-    "ANTHROPIC_AUTH_TOKEN": "$ZAI_API_KEY",
-    "ANTHROPIC_DEFAULT_OPUS_MODEL": "glm-5.1",
-    "ANTHROPIC_DEFAULT_SONNET_MODEL": "glm-5.1",
-    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "glm-4.5-air"
-  }
-}
-SETTINGS
-
-# Launch Claude Code with custom config
-echo "🚀 Starting Claude Code with GLM-5.1 (Standard Model)..."
-echo "📁 Config directory: \$CLAUDE_HOME"
-echo ""
-
-# Check if claude exists
-if ! command -v claude &> /dev/null; then
-    echo "❌ Error: 'claude' command not found!"
-    echo "Please ensure Claude Code is installed and in your PATH"
-    exit 1
-fi
-
-# Run the actual claude command
-claude "\$@"
-EOF
-
-    chmod +x "$wrapper_path"
-    echo "✅ Installed claude-glm at $wrapper_path"
-    [ -f "$CONFIG_LOADER" ] && node "$CONFIG_LOADER" record-wrapper "glm" "glm-51" "$wrapper_path" "$HOME/.claude-glm" "ccg" 2>/dev/null
-}
-
-# Create the fast GLM-4.5-Air wrapper
-create_claude_glm_standard_wrapper() {
-    local wrapper_path="$USER_BIN_DIR/claude-glm-standard"
-
-    # Try to use YAML config if available
-    if [ -f "$CONFIG_LOADER" ]; then
-        node "$CONFIG_LOADER" wrapper-bash "glm" "glm-standard" "$ZAI_API_KEY" > "$wrapper_path" 2>/dev/null
-        if [ $? -eq 0 ]; then
-            chmod +x "$wrapper_path"
-            echo "✅ Installed claude-glm-standard at $wrapper_path (from YAML config)"
-            [ -f "$CONFIG_LOADER" ] && node "$CONFIG_LOADER" record-wrapper "glm" "glm-standard" "$wrapper_path" "$HOME/.claude-glm-standard" "ccgs" 2>/dev/null
-            return 0
-        fi
+    if [ -z "$wrapper_name" ]; then
+        echo "❌ Error: could not resolve wrapper name for $provider/$model_id"
+        return 1
     fi
 
-    # Fallback to hardcoded template
-    cat > "$wrapper_path" << EOF
-#!/bin/bash
-# Claude-GLM-Standard - Claude Code with Z.AI GLM Standard (Balanced)
+    wrapper_path="$USER_BIN_DIR/$wrapper_name"
 
-# Set Z.AI environment variables
-export ANTHROPIC_BASE_URL="https://api.z.ai/api/anthropic"
-export ANTHROPIC_AUTH_TOKEN="$ZAI_API_KEY"
-export ANTHROPIC_DEFAULT_OPUS_MODEL="glm-5-turbo"
-export ANTHROPIC_DEFAULT_SONNET_MODEL="glm-4.7"
-export ANTHROPIC_DEFAULT_HAIKU_MODEL="glm-4.6"
-
-# Use custom config directory to avoid conflicts
-export CLAUDE_HOME="\$HOME/.claude-glm-standard"
-
-# Create config directory if it doesn't exist
-mkdir -p "\$CLAUDE_HOME"
-
-# Create/update settings file
-cat > "\$CLAUDE_HOME/settings.json" << SETTINGS
-{
-  "env": {
-    "ANTHROPIC_BASE_URL": "https://api.z.ai/api/anthropic",
-    "ANTHROPIC_AUTH_TOKEN": "$ZAI_API_KEY",
-    "ANTHROPIC_DEFAULT_OPUS_MODEL": "glm-5-turbo",
-    "ANTHROPIC_DEFAULT_SONNET_MODEL": "glm-4.7",
-    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "glm-4.6"
-  }
-}
-SETTINGS
-
-# Launch Claude Code with custom config
-echo "⚖️  Starting Claude Code with GLM Standard (Balanced)..."
-echo "📁 Config directory: \$CLAUDE_HOME"
-echo ""
-
-# Check if claude exists
-if ! command -v claude &> /dev/null; then
-    echo "❌ Error: 'claude' command not found!"
-    echo "Please ensure Claude Code is installed and in your PATH"
-    exit 1
-fi
-
-# Run the actual claude command
-claude "\$@"
-EOF
-
-    chmod +x "$wrapper_path"
-    echo "✅ Installed claude-glm-standard at $wrapper_path"
-    [ -f "$CONFIG_LOADER" ] && node "$CONFIG_LOADER" record-wrapper "glm" "glm-standard" "$wrapper_path" "$HOME/.claude-glm-standard" "ccgs" 2>/dev/null
-}
-
-create_claude_glm_fast_wrapper() {
-    local wrapper_path="$USER_BIN_DIR/claude-glm-fast"
-
-    # Try to use YAML config if available
-    if [ -f "$CONFIG_LOADER" ]; then
-        node "$CONFIG_LOADER" wrapper-bash "glm" "glm-fast" "$ZAI_API_KEY" > "$wrapper_path" 2>/dev/null
-        if [ $? -eq 0 ]; then
-            chmod +x "$wrapper_path"
-            echo "✅ Installed claude-glm-fast at $wrapper_path (from YAML config)"
-            [ -f "$CONFIG_LOADER" ] && node "$CONFIG_LOADER" record-wrapper "glm" "glm-fast" "$wrapper_path" "$HOME/.claude-glm-fast" "ccf" 2>/dev/null
-            return 0
-        fi
+    if ! node "$CONFIG_LOADER" wrapper-bash "$provider" "$model_id" "$api_key" > "$wrapper_path" 2>/dev/null; then
+        echo "❌ Error generating $wrapper_name (provider=$provider model=$model_id)"
+        rm -f "$wrapper_path"
+        return 1
     fi
 
-    # Fallback to hardcoded template
-    cat > "$wrapper_path" << EOF
-#!/bin/bash
-# Claude-GLM-Fast - Claude Code with Z.AI GLM Fast (4.x only, 1x quota)
-
-# Set Z.AI environment variables
-export ANTHROPIC_BASE_URL="https://api.z.ai/api/anthropic"
-export ANTHROPIC_AUTH_TOKEN="$ZAI_API_KEY"
-export ANTHROPIC_DEFAULT_OPUS_MODEL="glm-4.7"
-export ANTHROPIC_DEFAULT_SONNET_MODEL="glm-4.6"
-export ANTHROPIC_DEFAULT_HAIKU_MODEL="glm-4.5-air"
-
-# Use custom config directory to avoid conflicts
-export CLAUDE_HOME="\$HOME/.claude-glm-fast"
-
-# Create config directory if it doesn't exist
-mkdir -p "\$CLAUDE_HOME"
-
-# Create/update settings file
-cat > "\$CLAUDE_HOME/settings.json" << SETTINGS
-{
-  "env": {
-    "ANTHROPIC_BASE_URL": "https://api.z.ai/api/anthropic",
-    "ANTHROPIC_AUTH_TOKEN": "$ZAI_API_KEY",
-    "ANTHROPIC_DEFAULT_OPUS_MODEL": "glm-4.7",
-    "ANTHROPIC_DEFAULT_SONNET_MODEL": "glm-4.6",
-    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "glm-4.5-air"
-  }
-}
-SETTINGS
-
-# Launch Claude Code with custom config
-echo "⚡ Starting Claude Code with GLM Fast (1x quota)..."
-echo "📁 Config directory: \$CLAUDE_HOME"
-echo ""
-
-# Check if claude exists
-if ! command -v claude &> /dev/null; then
-    echo "❌ Error: 'claude' command not found!"
-    echo "Please ensure Claude Code is installed and in your PATH"
-    exit 1
-fi
-
-# Run the actual claude command
-claude "\$@"
-EOF
-
     chmod +x "$wrapper_path"
-    echo "✅ Installed claude-glm-fast at $wrapper_path"
-    [ -f "$CONFIG_LOADER" ] && node "$CONFIG_LOADER" record-wrapper "glm" "glm-fast" "$wrapper_path" "$HOME/.claude-glm-fast" "ccf" 2>/dev/null
-}
-
-# Create the MiniMax wrapper
-create_claude_minimax_wrapper() {
-    local wrapper_path="$USER_BIN_DIR/ccm"
-
-    # Try to use YAML config if available
-    if [ -f "$CONFIG_LOADER" ]; then
-        node "$CONFIG_LOADER" wrapper-bash "minimax" "default" "$MINIMAX_API_KEY" > "$wrapper_path" 2>/dev/null
-        if [ $? -eq 0 ]; then
-            chmod +x "$wrapper_path"
-            echo "✅ Installed ccm at $wrapper_path (from YAML config)"
-            [ -f "$CONFIG_LOADER" ] && node "$CONFIG_LOADER" record-wrapper "minimax" "default" "$wrapper_path" "$HOME/.claude-minimax" "ccm" 2>/dev/null
-            return 0
-        fi
-    fi
-
-    # Fallback to hardcoded template
-    cat > "$wrapper_path" << EOF
-#!/bin/bash
-# CCM - Claude Code with MiniMax provider
-
-# Set MiniMax environment variables
-export ANTHROPIC_BASE_URL="https://api.minimax.io/anthropic"
-export ANTHROPIC_AUTH_TOKEN="$MINIMAX_API_KEY"
-export ANTHROPIC_DEFAULT_SONNET_MODEL="MiniMax-M2"
-export ANTHROPIC_DEFAULT_OPUS_MODEL="MiniMax-M2"
-export ANTHROPIC_DEFAULT_HAIKU_MODEL="MiniMax-M2"
-export API_TIMEOUT_MS="3000000"
-export CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC="1"
-
-# Use custom config directory to avoid conflicts
-export CLAUDE_HOME="\$HOME/.claude-minimax"
-
-# Create config directory if it doesn't exist
-mkdir -p "\$CLAUDE_HOME"
-
-# Create/update settings file with MiniMax configuration
-cat > "\$CLAUDE_HOME/settings.json" << SETTINGS
-{
-  "env": {
-    "ANTHROPIC_BASE_URL": "https://api.minimax.io/anthropic",
-    "ANTHROPIC_AUTH_TOKEN": "$MINIMAX_API_KEY",
-    "API_TIMEOUT_MS": "3000000",
-    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": 1,
-    "ANTHROPIC_DEFAULT_SONNET_MODEL": "MiniMax-M2",
-    "ANTHROPIC_DEFAULT_OPUS_MODEL": "MiniMax-M2",
-    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "MiniMax-M2"
-  }
-}
-SETTINGS
-
-# Launch Claude Code with custom config
-echo "🚀 Starting Claude Code with MiniMax (M2 Model)..."
-echo "📁 Config directory: \$CLAUDE_HOME"
-echo ""
-
-# Check if claude exists
-if ! command -v claude &> /dev/null; then
-    echo "❌ Error: 'claude' command not found!"
-    echo "Please ensure Claude Code is installed and in your PATH"
-    exit 1
-fi
-
-# Run the actual claude command
-claude "\$@"
-EOF
-
-    chmod +x "$wrapper_path"
-    echo "✅ Installed ccm at $wrapper_path"
-    [ -f "$CONFIG_LOADER" ] && node "$CONFIG_LOADER" record-wrapper "minimax" "default" "$wrapper_path" "$HOME/.claude-minimax" "ccm" 2>/dev/null
-}
-
-# Create the DeepSeek wrapper
-create_claude_deepseek_wrapper() {
-    local wrapper_path="$USER_BIN_DIR/ccd"
-
-    # Try to use YAML config if available
-    if [ -f "$CONFIG_LOADER" ]; then
-        node "$CONFIG_LOADER" wrapper-bash "deepseek" "default" "$DEEPSEEK_API_KEY" > "$wrapper_path" 2>/dev/null
-        if [ $? -eq 0 ]; then
-            chmod +x "$wrapper_path"
-            echo "✅ Installed ccd at $wrapper_path (from YAML config)"
-            [ -f "$CONFIG_LOADER" ] && node "$CONFIG_LOADER" record-wrapper "deepseek" "default" "$wrapper_path" "$HOME/.claude-deepseek" "ccd" 2>/dev/null
-            return 0
-        fi
-    fi
-
-    # Fallback to hardcoded template
-    cat > "$wrapper_path" << EOF
-#!/bin/bash
-# CCD - Claude Code with DeepSeek provider
-
-# Set DeepSeek environment variables
-export ANTHROPIC_BASE_URL="https://api.deepseek.com/anthropic"
-export ANTHROPIC_AUTH_TOKEN="$DEEPSEEK_API_KEY"
-export API_TIMEOUT_MS="600000"
-export CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC="1"
-
-# Use custom config directory to avoid conflicts
-export CLAUDE_HOME="\$HOME/.claude-deepseek"
-
-# Create config directory if it doesn't exist
-mkdir -p "\$CLAUDE_HOME"
-
-# Create/update settings file with DeepSeek configuration
-cat > "\$CLAUDE_HOME/settings.json" << SETTINGS
-{
-  "env": {
-    "ANTHROPIC_BASE_URL": "https://api.deepseek.com/anthropic",
-    "ANTHROPIC_AUTH_TOKEN": "$DEEPSEEK_API_KEY",
-    "API_TIMEOUT_MS": "600000",
-    "ANTHROPIC_DEFAULT_OPUS_MODEL": "deepseek-chat",
-    "ANTHROPIC_DEFAULT_SONNET_MODEL": "deepseek-chat",
-    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "deepseek-chat",
-    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": 1
-  }
-}
-SETTINGS
-
-# Launch Claude Code with custom config
-echo "🚀 Starting Claude Code with DeepSeek (deepseek-chat)..."
-echo "📁 Config directory: \$CLAUDE_HOME"
-echo ""
-
-# Check if claude exists
-if ! command -v claude &> /dev/null; then
-    echo "❌ Error: 'claude' command not found!"
-    echo "Please ensure Claude Code is installed and in your PATH"
-    exit 1
-fi
-
-# Run the actual claude command
-claude "\$@"
-EOF
-
-    chmod +x "$wrapper_path"
-    echo "✅ Installed ccd at $wrapper_path"
-    [ -f "$CONFIG_LOADER" ] && node "$CONFIG_LOADER" record-wrapper "deepseek" "default" "$wrapper_path" "$HOME/.claude-deepseek" "ccd" 2>/dev/null
+    echo "✅ Installed $wrapper_name at $wrapper_path"
+    node "$CONFIG_LOADER" record-wrapper "$provider" "$model_id" "$wrapper_path" "$config_dir" "$alias" 2>/dev/null
 }
 
 # Clean up wrappers for providers not selected in this installation
 cleanup_unselected_wrappers() {
     local selected_providers="$1"  # Space-separated list: "glm", "minimax", "deepseek"
 
-    # Define all possible wrappers and their config directories
-    local glm_wrappers="claude-glm claude-glm-standard claude-glm-fast"
-    local glm_configs="$HOME/.claude-glm $HOME/.claude-glm-standard $HOME/.claude-glm-fast"
-    local glm_aliases="ccg ccgs ccf"
-
-    local minimax_wrappers="ccm"
-    local minimax_configs="$HOME/.claude-minimax"
-    local minimax_aliases="ccm"
-
-    local deepseek_wrappers="ccd"
-    local deepseek_configs="$HOME/.claude-deepseek"
-    local deepseek_aliases="ccd"
-
-    # Check which wrappers exist
+    # Discover existing wrappers/configs/aliases for providers NOT selected,
+    # driven by config (single source of truth). Passthrough providers
+    # (base_url empty, e.g. official claude) are skipped — they have no wrapper.
     local existing_wrappers=""
     local existing_configs=""
-    local existing_aliases_info=""
+    local existing_aliases=""
 
-    # Check GLM wrappers
-    if [[ ! " $selected_providers " =~ " glm " ]]; then
-        for wrapper in $glm_wrappers; do
-            if [ -f "$USER_BIN_DIR/$wrapper" ]; then
-                existing_wrappers="$existing_wrappers $wrapper"
-            fi
-        done
-        for config in $glm_configs; do
-            if [ -d "$config" ]; then
-                existing_configs="$existing_configs $config"
-            fi
-        done
-    fi
-
-    # Check MiniMax wrappers
-    if [[ ! " $selected_providers " =~ " minimax " ]]; then
-        for wrapper in $minimax_wrappers; do
-            if [ -f "$USER_BIN_DIR/$wrapper" ]; then
-                existing_wrappers="$existing_wrappers $wrapper"
-            fi
-        done
-        for config in $minimax_configs; do
-            if [ -d "$config" ]; then
-                existing_configs="$existing_configs $config"
-            fi
-        done
-    fi
-
-    # Check DeepSeek wrappers
-    if [[ ! " $selected_providers " =~ " deepseek " ]]; then
-        for wrapper in $deepseek_wrappers; do
-            if [ -f "$USER_BIN_DIR/$wrapper" ]; then
-                existing_wrappers="$existing_wrappers $wrapper"
-            fi
-        done
-        for config in $deepseek_configs; do
-            if [ -d "$config" ]; then
-                existing_configs="$existing_configs $config"
-            fi
-        done
+    if [ -f "$CONFIG_LOADER" ]; then
+        while IFS=$'\t' read -r provider _model wrapper alias config_dir base_url; do
+            [ -n "$base_url" ] || continue                       # skip passthrough
+            [[ " $selected_providers " =~ " $provider " ]] && continue
+            [ -f "$USER_BIN_DIR/$wrapper" ] && existing_wrappers="$existing_wrappers $wrapper"
+            [ -d "$config_dir" ] && existing_configs="$existing_configs $config_dir"
+            [ -n "$alias" ] && existing_aliases="$existing_aliases $alias"
+        done < <(node "$CONFIG_LOADER" list-models 2>/dev/null)
     fi
 
     # If nothing to clean, return
@@ -850,58 +436,17 @@ cleanup_unselected_wrappers() {
         echo ""
         echo "🧹 Removing unselected provider wrappers..."
 
-        # Remove GLM
-        if [[ ! " $selected_providers " =~ " glm " ]]; then
-            for wrapper in $glm_wrappers; do
-                if [ -f "$USER_BIN_DIR/$wrapper" ]; then
-                    rm -f "$USER_BIN_DIR/$wrapper"
-                    echo "   ✅ Removed: $wrapper"
-                fi
-            done
-            for config in $glm_configs; do
-                if [ -d "$config" ]; then
-                    rm -rf "$config"
-                    echo "   ✅ Removed: $config"
-                fi
-            done
-            # Remove aliases from shell config
-            remove_aliases_from_shell "$glm_aliases"
-        fi
-
-        # Remove MiniMax
-        if [[ ! " $selected_providers " =~ " minimax " ]]; then
-            for wrapper in $minimax_wrappers; do
-                if [ -f "$USER_BIN_DIR/$wrapper" ]; then
-                    rm -f "$USER_BIN_DIR/$wrapper"
-                    echo "   ✅ Removed: $wrapper"
-                fi
-            done
-            for config in $minimax_configs; do
-                if [ -d "$config" ]; then
-                    rm -rf "$config"
-                    echo "   ✅ Removed: $config"
-                fi
-            done
-            # Remove aliases from shell config
-            remove_aliases_from_shell "$minimax_aliases"
-        fi
-
-        # Remove DeepSeek
-        if [[ ! " $selected_providers " =~ " deepseek " ]]; then
-            for wrapper in $deepseek_wrappers; do
-                if [ -f "$USER_BIN_DIR/$wrapper" ]; then
-                    rm -f "$USER_BIN_DIR/$wrapper"
-                    echo "   ✅ Removed: $wrapper"
-                fi
-            done
-            for config in $deepseek_configs; do
-                if [ -d "$config" ]; then
-                    rm -rf "$config"
-                    echo "   ✅ Removed: $config"
-                fi
-            done
-            # Remove aliases from shell config
-            remove_aliases_from_shell "$deepseek_aliases"
+        for wrapper in $existing_wrappers; do
+            rm -f "$USER_BIN_DIR/$wrapper"
+            echo "   ✅ Removed: $wrapper"
+        done
+        for config in $existing_configs; do
+            rm -rf "$config"
+            echo "   ✅ Removed: $config"
+        done
+        # Remove the aliases of unselected providers from shell config
+        if [ -n "$existing_aliases" ]; then
+            remove_aliases_from_shell "$existing_aliases"
         fi
 
         echo ""
@@ -1114,50 +659,52 @@ configure_advanced_options() {
 # Create shell aliases
 create_shell_aliases() {
     local rc_file=$(detect_shell_rc)
-    
+
     if [ -z "$rc_file" ] || [ ! -f "$rc_file" ]; then
         echo "⚠️  Could not detect shell rc file, skipping aliases"
         return
     fi
-    
-    # Remove old aliases if they exist
+
+    # Derive alias/wrapper pairs from config (single source of truth)
+    local aliases=() wrappers=()
+    if [ -f "$CONFIG_LOADER" ]; then
+        while IFS=$'\t' read -r _prov _model wrapper alias _cfg _url; do
+            [ -n "$alias" ] || continue
+            aliases+=("$alias")
+            wrappers+=("$wrapper")
+        done < <(node "$CONFIG_LOADER" list-models 2>/dev/null)
+    fi
+    if [ ${#aliases[@]} -eq 0 ]; then
+        echo "⚠️  No aliases found in config, skipping"
+        return
+    fi
+
+    # Remove old aliases if they exist (match both bash "alias x=" and cshrc "alias x ")
     if grep -q "# Claude Code Model Switcher Aliases" "$rc_file" 2>/dev/null; then
-        # Use temp file for compatibility
-        grep -v "# Claude Code Model Switcher Aliases" "$rc_file" | \
-        grep -v "alias cc=" | \
-        grep -v "alias ccg=" | \
-        grep -v "alias ccgs=" | \
-        grep -v "alias ccf=" | \
-        grep -v "alias ccm=" | \
-        grep -v "alias ccd=" > "$rc_file.tmp"
+        local grep_args=("-v" "-e" "# Claude Code Model Switcher Aliases")
+        for a in "${aliases[@]}"; do
+            grep_args+=("-e" "alias $a=")
+            grep_args+=("-e" "alias $a ")
+        done
+        grep "${grep_args[@]}" "$rc_file" > "$rc_file.tmp"
         mv "$rc_file.tmp" "$rc_file"
     fi
-    
+
     # Add aliases based on shell type
-    if [[ "$rc_file" == *".cshrc" ]]; then
-        cat >> "$rc_file" << 'EOF'
+    {
+        echo ""
+        echo "# Claude Code Model Switcher Aliases"
+        if [[ "$rc_file" == *".cshrc" ]]; then
+            for i in "${!aliases[@]}"; do
+                echo "alias ${aliases[$i]} '${wrappers[$i]}'"
+            done
+        else
+            for i in "${!aliases[@]}"; do
+                echo "alias ${aliases[$i]}='${wrappers[$i]}'"
+            done
+        fi
+    } >> "$rc_file"
 
-# Claude Code Model Switcher Aliases
-alias cc 'claude'
-alias ccg 'claude-glm'
-alias ccgs 'claude-glm-standard'
-alias ccf 'claude-glm-fast'
-alias ccm 'ccm'
-alias ccd 'ccd'
-EOF
-    else
-        cat >> "$rc_file" << 'EOF'
-
-# Claude Code Model Switcher Aliases
-alias cc='claude'
-alias ccg='claude-glm'
-alias ccgs='claude-glm-standard'
-alias ccf='claude-glm-fast'
-alias ccm='ccm'
-alias ccd='ccd'
-EOF
-    fi
-    
     echo "✅ Added aliases to $rc_file"
 }
 
@@ -1259,7 +806,7 @@ main() {
                 # Offer advanced options before regenerating wrappers
                 if [ -f "$CONFIG_LOADER" ]; then
                     if [ -n "$ZAI_API_KEY" ]; then
-                        configure_advanced_options "glm" "glm-51 glm-standard glm-fast" "Z.AI GLM"
+                        configure_advanced_options "glm" "glm-51 glm-52 glm-standard glm-fast" "Z.AI GLM"
                     fi
                     if [ -n "$MINIMAX_API_KEY" ]; then
                         configure_advanced_options "minimax" "default" "MiniMax"
@@ -1271,17 +818,18 @@ main() {
 
                 # Regenerate wrappers with new models
                 if [ -n "$ZAI_API_KEY" ]; then
-                    create_claude_glm_wrapper
-                    create_claude_glm_standard_wrapper
-                    create_claude_glm_fast_wrapper
-                    echo "✅ GLM models updated (MAX/Standard/Fast)!"
+                    create_wrapper_for "glm" "glm-51" "$ZAI_API_KEY"
+                    create_wrapper_for "glm" "glm-52" "$ZAI_API_KEY"
+                    create_wrapper_for "glm" "glm-standard" "$ZAI_API_KEY"
+                    create_wrapper_for "glm" "glm-fast" "$ZAI_API_KEY"
+                    echo "✅ GLM models updated (MAX/MAX-5.2/Standard/Fast)!"
                 fi
                 if [ -n "$MINIMAX_API_KEY" ]; then
-                    create_claude_minimax_wrapper
+                    create_wrapper_for "minimax" "default" "$MINIMAX_API_KEY"
                     echo "✅ MiniMax wrapper updated!"
                 fi
                 if [ -n "$DEEPSEEK_API_KEY" ]; then
-                    create_claude_deepseek_wrapper
+                    create_wrapper_for "deepseek" "default" "$DEEPSEEK_API_KEY"
                     echo "✅ DeepSeek wrapper updated!"
                 fi
 
@@ -1300,23 +848,24 @@ main() {
                     read -p "Enter your Z.AI API key: " input_key
                     if [ -n "$input_key" ]; then
                         ZAI_API_KEY="$input_key"
-                        create_claude_glm_wrapper
-                        create_claude_glm_standard_wrapper
-                        create_claude_glm_fast_wrapper
+                        create_wrapper_for "glm" "glm-51" "$ZAI_API_KEY"
+                        create_wrapper_for "glm" "glm-52" "$ZAI_API_KEY"
+                        create_wrapper_for "glm" "glm-standard" "$ZAI_API_KEY"
+                        create_wrapper_for "glm" "glm-fast" "$ZAI_API_KEY"
                         echo "✅ GLM API key updated!"
                     fi
                 elif [ "$provider_choice" = "2" ]; then
                     read -p "Enter your MiniMax API key: " input_key
                     if [ -n "$input_key" ]; then
                         MINIMAX_API_KEY="$input_key"
-                        create_claude_minimax_wrapper
+                        create_wrapper_for "minimax" "default" "$MINIMAX_API_KEY"
                         echo "✅ MiniMax API key updated!"
                     fi
                 elif [ "$provider_choice" = "3" ]; then
                     read -p "Enter your DeepSeek API key: " input_key
                     if [ -n "$input_key" ]; then
                         DEEPSEEK_API_KEY="$input_key"
-                        create_claude_deepseek_wrapper
+                        create_wrapper_for "deepseek" "default" "$DEEPSEEK_API_KEY"
                         echo "✅ DeepSeek API key updated!"
                     fi
                 fi
@@ -1384,7 +933,7 @@ main() {
     if [ -f "$CONFIG_LOADER" ]; then
         if [ "$provider_choice" = "1" ] || [ "$provider_choice" = "4" ] || [ "$provider_choice" = "5" ]; then
             if [ -n "$ZAI_API_KEY" ]; then
-                configure_advanced_options "glm" "glm-51 glm-standard glm-fast" "Z.AI GLM"
+                configure_advanced_options "glm" "glm-51 glm-52 glm-standard glm-fast" "Z.AI GLM"
             fi
         fi
         if [ "$provider_choice" = "2" ] || [ "$provider_choice" = "4" ] || [ "$provider_choice" = "5" ]; then
@@ -1418,17 +967,18 @@ main() {
 
     # Create wrappers
     if [ "$provider_choice" = "1" ] || [ "$provider_choice" = "4" ] || [ "$provider_choice" = "5" ]; then
-        create_claude_glm_wrapper
-        create_claude_glm_standard_wrapper
-        create_claude_glm_fast_wrapper
+        create_wrapper_for "glm" "glm-51" "$ZAI_API_KEY"
+        create_wrapper_for "glm" "glm-52" "$ZAI_API_KEY"
+        create_wrapper_for "glm" "glm-standard" "$ZAI_API_KEY"
+        create_wrapper_for "glm" "glm-fast" "$ZAI_API_KEY"
     fi
-    
+
     if [ "$provider_choice" = "2" ] || [ "$provider_choice" = "4" ] || [ "$provider_choice" = "5" ]; then
-        create_claude_minimax_wrapper
+        create_wrapper_for "minimax" "default" "$MINIMAX_API_KEY"
     fi
-    
+
     if [ "$provider_choice" = "3" ] || [ "$provider_choice" = "4" ] || [ "$provider_choice" = "5" ]; then
-        create_claude_deepseek_wrapper
+        create_wrapper_for "deepseek" "default" "$DEEPSEEK_API_KEY"
     fi
     
     create_shell_aliases
@@ -1453,6 +1003,7 @@ main() {
     
     if [ "$provider_choice" = "1" ] || [ "$provider_choice" = "4" ] || [ "$provider_choice" = "5" ]; then
         echo "   claude-glm      - GLM-5.1 (latest)"
+        echo "   claude-glm-52   - GLM-5.2 (MAX 5.2)"
         echo "   claude-glm-fast - GLM-4.5-Air (fast)"
     fi
     
@@ -1470,6 +1021,7 @@ main() {
     
     if [ "$provider_choice" = "1" ] || [ "$provider_choice" = "4" ] || [ "$provider_choice" = "5" ]; then
         echo "   ccg   - claude-glm (GLM-5.1)"
+        echo "   ccg52 - claude-glm-52 (GLM-5.2)"
         echo "   ccf   - claude-glm-fast"
     fi
     
@@ -1486,6 +1038,7 @@ main() {
     if [ "$ZAI_API_KEY" = "YOUR_ZAI_API_KEY_HERE" ] && ([ "$provider_choice" = "1" ] || [ "$provider_choice" = "4" ] || [ "$provider_choice" = "5" ]); then
         echo "⚠️  Don't forget to add your Z.AI API key to:"
         echo "   $USER_BIN_DIR/claude-glm"
+        echo "   $USER_BIN_DIR/claude-glm-52"
         echo "   $USER_BIN_DIR/claude-glm-fast"
         echo ""
     fi
@@ -1505,7 +1058,7 @@ main() {
     echo "📁 Installation location: $USER_BIN_DIR"
     
     if [ "$provider_choice" = "1" ] || [ "$provider_choice" = "4" ] || [ "$provider_choice" = "5" ]; then
-        echo "📁 GLM Config directories: ~/.claude-glm, ~/.claude-glm-fast"
+        echo "📁 GLM Config directories: ~/.claude-glm, ~/.claude-glm-52, ~/.claude-glm-standard, ~/.claude-glm-fast"
     fi
     
     if [ "$provider_choice" = "2" ] || [ "$provider_choice" = "4" ] || [ "$provider_choice" = "5" ]; then
@@ -1580,8 +1133,22 @@ run_uninstall() {
         wrappers_json=$(node "$CONFIG_LOADER" list-wrappers 2>/dev/null)
     fi
 
+    # Derive wrapper files, config dirs and aliases from config (single source of truth).
+    # Passthrough providers (empty base_url) are excluded from wrapper/config lists.
+    local wrapper_files=()
+    local config_dirs=()
+    local all_aliases=""
+    if [ -f "$CONFIG_LOADER" ]; then
+        while IFS=$'\t' read -r _provider _model wrapper alias config_dir base_url; do
+            if [ -n "$base_url" ]; then
+                wrapper_files+=("$wrapper")
+                config_dirs+=("$config_dir")
+            fi
+            [ -n "$alias" ] && all_aliases="$all_aliases $alias"
+        done < <(node "$CONFIG_LOADER" list-models 2>/dev/null)
+    fi
+
     # Remove wrapper scripts
-    local wrapper_files=("claude-glm" "claude-glm-fast" "ccm" "ccd")
     local removed_count=0
     for w in "${wrapper_files[@]}"; do
         local wpath="$USER_BIN_DIR/$w"
@@ -1593,7 +1160,6 @@ run_uninstall() {
     done
 
     # Remove config directories (with confirmation - they contain chat history)
-    local config_dirs=("$HOME/.claude-glm" "$HOME/.claude-glm-fast" "$HOME/.claude-minimax" "$HOME/.claude-deepseek")
     echo ""
     read -p "Remove provider config directories (includes chat history)? (y/N): " rm_configs
     if [ "$rm_configs" = "y" ] || [ "$rm_configs" = "Y" ]; then
@@ -1608,7 +1174,6 @@ run_uninstall() {
     fi
 
     # Remove shell aliases
-    local all_aliases="cc ccg ccgs ccf ccm ccd"
     remove_aliases_from_shell $all_aliases 2>/dev/null
     echo "  Removed shell aliases."
 

@@ -33,6 +33,7 @@ $ConfigLoader = Join-Path $PSScriptRoot "lib\config-loader.js"
 
 # Legacy config directories (for backward compatibility)
 $GlmConfigDir = "$env:USERPROFILE\.claude-glm"
+$Glm52ConfigDir = "$env:USERPROFILE\.claude-glm-52"
 $GlmStandardConfigDir = "$env:USERPROFILE\.claude-glm-standard"
 $GlmFastConfigDir = "$env:USERPROFILE\.claude-glm-fast"
 $MiniMaxConfigDir = "$env:USERPROFILE\.claude-minimax"
@@ -44,83 +45,6 @@ $ZaiApiKey = "YOUR_ZAI_API_KEY_HERE"
 # Ensure config directory exists
 if (-not (Test-Path $ProvidersHubDir)) {
     New-Item -ItemType Directory -Path $ProvidersHubDir -Force | Out-Null
-}
-
-# Function to get provider variables from YAML config
-function Get-ProviderVars {
-    param(
-        [string]$Provider,
-        [string]$Model,
-        [string]$ApiKey
-    )
-
-    # Try to use YAML config if available
-    if (Test-Path $ConfigLoader) {
-        $output = node $ConfigLoader export-powershell $Provider $Model $ApiKey 2>&1
-        if ($LASTEXITCODE -eq 0) {
-            # Convert output to PowerShell variables
-            $output | ForEach-Object {
-                if ($_ -match '^\$(\w+)\s*=\s*"([^"]*)"') {
-                    $varName = $matches[1]
-                    $varValue = $matches[2]
-                    Set-Variable -Name $varName -Value $varValue -Scope Script
-                }
-            }
-            return
-        }
-    }
-
-    # Fallback to hardcoded values
-    switch ($Provider) {
-        "glm" {
-            $script:BaseUrl = "https://api.z.ai/api/anthropic"
-            switch ($Model) {
-                "glm-51" {
-                    $script:ModelName = "GLM MAX"
-                    $script:ConfigDir = $GlmConfigDir
-                    $script:ANTHROPIC_DEFAULT_OPUS_MODEL = "glm-5.1"
-                    $script:ANTHROPIC_DEFAULT_SONNET_MODEL = "glm-5-turbo"
-                    $script:ANTHROPIC_DEFAULT_HAIKU_MODEL = "glm-4.7"
-                }
-                "glm-standard" {
-                    $script:ModelName = "GLM Standard"
-                    $script:ConfigDir = $GlmStandardConfigDir
-                    $script:ANTHROPIC_DEFAULT_OPUS_MODEL = "glm-5-turbo"
-                    $script:ANTHROPIC_DEFAULT_SONNET_MODEL = "glm-4.7"
-                    $script:ANTHROPIC_DEFAULT_HAIKU_MODEL = "glm-4.6"
-                }
-                "glm-fast" {
-                    $script:ModelName = "GLM Fast"
-                    $script:ConfigDir = $GlmFastConfigDir
-                    $script:ANTHROPIC_DEFAULT_OPUS_MODEL = "glm-4.7"
-                    $script:ANTHROPIC_DEFAULT_SONNET_MODEL = "glm-4.6"
-                    $script:ANTHROPIC_DEFAULT_HAIKU_MODEL = "glm-4.5-air"
-                }
-            }
-        }
-        "deepseek" {
-            $script:BaseUrl = "https://api.deepseek.com/anthropic"
-            $script:ModelName = "deepseek-chat"
-            $script:ConfigDir = $DeepSeekConfigDir
-            $script:ANTHROPIC_DEFAULT_OPUS_MODEL = "deepseek-chat"
-            $script:ANTHROPIC_DEFAULT_SONNET_MODEL = "deepseek-chat"
-            $script:ANTHROPIC_DEFAULT_HAIKU_MODEL = "deepseek-chat"
-            $script:API_TIMEOUT_MS = "600000"
-            $script:CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC = "1"
-        }
-        "minimax" {
-            $script:BaseUrl = "https://api.minimax.io/anthropic"
-            $script:ModelName = "MiniMax-M2"
-            $script:ConfigDir = $MiniMaxConfigDir
-            $script:ANTHROPIC_DEFAULT_SONNET_MODEL = "MiniMax-M2"
-            $script:ANTHROPIC_DEFAULT_OPUS_MODEL = "MiniMax-M2"
-            $script:ANTHROPIC_DEFAULT_HAIKU_MODEL = "MiniMax-M2"
-            $script:API_TIMEOUT_MS = "3000000"
-            $script:CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC = "1"
-        }
-    }
-
-    $script:ApiKey = $ApiKey
 }
 
 # Debug logging
@@ -266,6 +190,22 @@ function Add-PowerShellAliases {
         New-Item -ItemType File -Path $PROFILE -Force | Out-Null
     }
 
+    # Derive alias/wrapper pairs from config (single source of truth)
+    $pairs = @()
+    if (Test-Path $ConfigLoader) {
+        $rows = node $ConfigLoader list-models 2>$null
+        foreach ($line in $rows) {
+            $f = $line -split "`t"
+            if ($f.Count -ge 4 -and $f[3]) {
+                $pairs += [pscustomobject]@{ Alias = $f[3]; Wrapper = $f[2] }
+            }
+        }
+    }
+    if ($pairs.Count -eq 0) {
+        Write-Host "WARNING: No aliases found in config, skipping" -ForegroundColor Yellow
+        return
+    }
+
     # Read current profile
     $profileContent = @()
     if (Test-Path $PROFILE) {
@@ -279,277 +219,52 @@ function Add-PowerShellAliases {
         }
     }
 
-    # Remove old aliases if they exist
-    $filteredContent = $profileContent | Where-Object {
-        $_ -notmatch "# Claude Code Model Switcher Aliases" -and
-        $_ -notmatch "Set-Alias cc " -and
-        $_ -notmatch "Set-Alias ccg " -and
-        $_ -notmatch "Set-Alias ccgs " -and
-        $_ -notmatch "Set-Alias ccf " -and
-        $_ -notmatch "Set-Alias ccm " -and
-        $_ -notmatch "Set-Alias ccd "
+    # Drop old alias lines: the header or any "Set-Alias <alias> " (trailing space
+    # prevents cc from matching ccg52, etc.)
+    $aliasAlt = ($pairs | ForEach-Object { [regex]::Escape($_.Alias) }) -join '|'
+    $dropPattern = "# Claude Code Model Switcher Aliases|Set-Alias ($aliasAlt) "
+    $filteredContent = $profileContent | Where-Object { $_ -notmatch $dropPattern }
+
+    # Build new alias lines
+    $aliasLines = @("", "# Claude Code Model Switcher Aliases")
+    foreach ($p in $pairs) {
+        $aliasLines += "Set-Alias $($p.Alias) $($p.Wrapper)"
     }
 
-    # Add new aliases
-    $aliases = @"
-
-# Claude Code Model Switcher Aliases
-Set-Alias cc claude
-Set-Alias ccg claude-glm
-Set-Alias ccgs claude-glm-standard
-Set-Alias ccf claude-glm-fast
-Set-Alias ccm ccm
-Set-Alias ccd ccd
-"@
-
-    $newContent = $filteredContent + $aliases
+    $newContent = $filteredContent + $aliasLines
     Set-Content -Path $PROFILE -Value $newContent
 
     Write-Host "OK: Added aliases to PowerShell profile: $PROFILE"
 }
 
-# Create the GLM MAX wrapper (glm-5.1/glm-5-turbo/glm-4.7)
-function New-ClaudeGlmWrapper {
-    $wrapperPath = Join-Path $UserBinDir "claude-glm.ps1"
+# Create a wrapper script for a provider/model.
+# Content, filename, alias and config dir are all derived from config-loader.js
+# (providers.yaml), so adding a model only requires editing the YAML.
+function New-ProviderWrapper {
+    param(
+        [Parameter(Mandatory=$true)][string]$Provider,
+        [Parameter(Mandatory=$true)][string]$Model,
+        [Parameter(Mandatory=$true)][string]$ApiKey
+    )
 
-    $wrapperContent = @(
-        '# Claude-GLM - Claude Code with Z.AI GLM MAX',
-        '',
-        '# Set Z.AI environment variables',
-        '$env:ANTHROPIC_BASE_URL = "https://api.z.ai/api/anthropic"',
-        "`$env:ANTHROPIC_AUTH_TOKEN = `"$ZaiApiKey`"",
-        '$env:ANTHROPIC_DEFAULT_OPUS_MODEL = "glm-5.1"',
-        '$env:ANTHROPIC_DEFAULT_SONNET_MODEL = "glm-5-turbo"',
-        '$env:ANTHROPIC_DEFAULT_HAIKU_MODEL = "glm-4.7"',
-        '$env:API_TIMEOUT_MS = "600000"',
-        '$env:CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC = "1"',
-        '',
-        '# Use custom config directory to avoid conflicts',
-        "`$env:CLAUDE_HOME = `"$GlmConfigDir`"",
-        '',
-        '# Create config directory if it doesn''t exist',
-        'if (-not (Test-Path $env:CLAUDE_HOME)) {',
-        '    New-Item -ItemType Directory -Path $env:CLAUDE_HOME -Force | Out-Null',
-        '}',
-        '',
-        '# Create/update settings file',
-        '$settingsJson = "{`"env`":{`"ANTHROPIC_BASE_URL`":`"https://api.z.ai/api/anthropic`",`"ANTHROPIC_AUTH_TOKEN`":`"' + $ZaiApiKey + '`",`"ANTHROPIC_DEFAULT_OPUS_MODEL`":`"glm-5.1`",`"ANTHROPIC_DEFAULT_SONNET_MODEL`":`"glm-5-turbo`",`"ANTHROPIC_DEFAULT_HAIKU_MODEL`":`"glm-4.7`",`"API_TIMEOUT_MS`":`"600000`",`"CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC`":`"1`"}}"',
-        'Set-Content -Path (Join-Path $env:CLAUDE_HOME "settings.json") -Value $settingsJson',
-        '',
-        '# Launch Claude Code with custom config',
-        'Write-Host "LAUNCH: Starting Claude Code with GLM MAX (3x quota)..."',
-        'Write-Host "CONFIG: Config directory: $env:CLAUDE_HOME"',
-        'Write-Host ""',
-        '',
-        '# Check if claude exists',
-        'if (-not (Get-Command claude -ErrorAction SilentlyContinue)) {',
-        '    Write-Host "ERROR: ''claude'' command not found!"',
-        '    Write-Host "Please ensure Claude Code is installed and in your PATH"',
-        '    exit 1',
-        '}',
-        '',
-        '# Run the actual claude command',
-        '& claude $args'
-    ) -join "`n"
+    if (-not (Test-Path $ConfigLoader)) {
+        Write-Host "ERROR: config-loader.js not found at $ConfigLoader" -ForegroundColor Red
+        return
+    }
 
-    Set-Content -Path $wrapperPath -Value $wrapperContent
-    Write-Host "OK: Installed claude-glm at $wrapperPath" -ForegroundColor Green
-    if (Test-Path $ConfigLoader) { node $ConfigLoader record-wrapper "glm" "glm-51" $wrapperPath "$env:USERPROFILE\.claude-glm" "ccg" 2>$null }
-}
+    $wrapperName = (node $ConfigLoader get-wrapper-name $Provider $Model 2>$null).Trim()
+    $alias       = (node $ConfigLoader get-alias $Provider $Model 2>$null).Trim()
+    $configDir   = (node $ConfigLoader get-config-dir $Provider $Model 2>$null).Trim()
 
-# Create the GLM Standard wrapper (glm-5-turbo/glm-4.7/glm-4.6)
-function New-ClaudeGlmStandardWrapper {
-    $wrapperPath = Join-Path $UserBinDir "claude-glm-standard.ps1"
+    if ([string]::IsNullOrWhiteSpace($wrapperName)) {
+        Write-Host "ERROR: could not resolve wrapper name for $Provider/$Model" -ForegroundColor Red
+        return
+    }
 
-    $wrapperContent = @(
-        '# Claude-GLM-Standard - Claude Code with Z.AI GLM Standard',
-        '',
-        '# Set Z.AI environment variables',
-        '$env:ANTHROPIC_BASE_URL = "https://api.z.ai/api/anthropic"',
-        "`$env:ANTHROPIC_AUTH_TOKEN = `"$ZaiApiKey`"",
-        '$env:ANTHROPIC_DEFAULT_OPUS_MODEL = "glm-5-turbo"',
-        '$env:ANTHROPIC_DEFAULT_SONNET_MODEL = "glm-4.7"',
-        '$env:ANTHROPIC_DEFAULT_HAIKU_MODEL = "glm-4.6"',
-        '$env:API_TIMEOUT_MS = "600000"',
-        '$env:CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC = "1"',
-        '',
-        '# Use custom config directory to avoid conflicts',
-        "`$env:CLAUDE_HOME = `"$GlmStandardConfigDir`"",
-        '',
-        '# Create config directory if it doesn''t exist',
-        'if (-not (Test-Path $env:CLAUDE_HOME)) {',
-        '    New-Item -ItemType Directory -Path $env:CLAUDE_HOME -Force | Out-Null',
-        '}',
-        '',
-        '# Create/update settings file',
-        '$settingsJson = "{`"env`":{`"ANTHROPIC_BASE_URL`":`"https://api.z.ai/api/anthropic`",`"ANTHROPIC_AUTH_TOKEN`":`"' + $ZaiApiKey + '`",`"ANTHROPIC_DEFAULT_OPUS_MODEL`":`"glm-5-turbo`",`"ANTHROPIC_DEFAULT_SONNET_MODEL`":`"glm-4.7`",`"ANTHROPIC_DEFAULT_HAIKU_MODEL`":`"glm-4.6`",`"API_TIMEOUT_MS`":`"600000`",`"CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC`":`"1`"}}"',
-        'Set-Content -Path (Join-Path $env:CLAUDE_HOME "settings.json") -Value $settingsJson',
-        '',
-        '# Launch Claude Code with custom config',
-        'Write-Host "STANDARD: Starting Claude Code with GLM Standard (balanced)..."',
-        'Write-Host "CONFIG: Config directory: $env:CLAUDE_HOME"',
-        'Write-Host ""',
-        '',
-        '# Check if claude exists',
-        'if (-not (Get-Command claude -ErrorAction SilentlyContinue)) {',
-        '    Write-Host "ERROR: ''claude'' command not found!"',
-        '    Write-Host "Please ensure Claude Code is installed and in your PATH"',
-        '    exit 1',
-        '}',
-        '',
-        '# Run the actual claude command',
-        '& claude $args'
-    ) -join "`n"
-
-    Set-Content -Path $wrapperPath -Value $wrapperContent
-    Write-Host "OK: Installed claude-glm-standard at $wrapperPath" -ForegroundColor Green
-    if (Test-Path $ConfigLoader) { node $ConfigLoader record-wrapper "glm" "glm-standard" $wrapperPath "$env:USERPROFILE\.claude-glm-standard" "ccgs" 2>$null }
-}
-
-# Create the GLM Fast wrapper (glm-4.7/glm-4.6/glm-4.5-air, 1x quota always)
-function New-ClaudeGlmFastWrapper {
-    $wrapperPath = Join-Path $UserBinDir "claude-glm-fast.ps1"
-
-    $wrapperContent = @(
-        '# Claude-GLM-Fast - Claude Code with Z.AI GLM Fast (1x quota)',
-        '',
-        '# Set Z.AI environment variables',
-        '$env:ANTHROPIC_BASE_URL = "https://api.z.ai/api/anthropic"',
-        "`$env:ANTHROPIC_AUTH_TOKEN = `"$ZaiApiKey`"",
-        '$env:ANTHROPIC_DEFAULT_OPUS_MODEL = "glm-4.7"',
-        '$env:ANTHROPIC_DEFAULT_SONNET_MODEL = "glm-4.6"',
-        '$env:ANTHROPIC_DEFAULT_HAIKU_MODEL = "glm-4.5-air"',
-        '$env:API_TIMEOUT_MS = "600000"',
-        '$env:CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC = "1"',
-        '',
-        '# Use custom config directory to avoid conflicts',
-        "`$env:CLAUDE_HOME = `"$GlmFastConfigDir`"",
-        '',
-        '# Create config directory if it doesn''t exist',
-        'if (-not (Test-Path $env:CLAUDE_HOME)) {',
-        '    New-Item -ItemType Directory -Path $env:CLAUDE_HOME -Force | Out-Null',
-        '}',
-        '',
-        '# Create/update settings file',
-        '$settingsJson = "{`"env`":{`"ANTHROPIC_BASE_URL`":`"https://api.z.ai/api/anthropic`",`"ANTHROPIC_AUTH_TOKEN`":`"' + $ZaiApiKey + '`",`"ANTHROPIC_DEFAULT_OPUS_MODEL`":`"glm-4.7`",`"ANTHROPIC_DEFAULT_SONNET_MODEL`":`"glm-4.6`",`"ANTHROPIC_DEFAULT_HAIKU_MODEL`":`"glm-4.5-air`",`"API_TIMEOUT_MS`":`"600000`",`"CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC`":`"1`"}}"',
-        'Set-Content -Path (Join-Path $env:CLAUDE_HOME "settings.json") -Value $settingsJson',
-        '',
-        '# Launch Claude Code with custom config',
-        'Write-Host "FAST: Starting Claude Code with GLM Fast (1x quota)..."',
-        'Write-Host "CONFIG: Config directory: $env:CLAUDE_HOME"',
-        'Write-Host ""',
-        '',
-        '# Check if claude exists',
-        'if (-not (Get-Command claude -ErrorAction SilentlyContinue)) {',
-        '    Write-Host "ERROR: ''claude'' command not found!"',
-        '    Write-Host "Please ensure Claude Code is installed and in your PATH"',
-        '    exit 1',
-        '}',
-        '',
-        '# Run the actual claude command',
-        '& claude $args'
-    ) -join "`n"
-
-    Set-Content -Path $wrapperPath -Value $wrapperContent
-    Write-Host "OK: Installed claude-glm-fast at $wrapperPath" -ForegroundColor Green
-    if (Test-Path $ConfigLoader) { node $ConfigLoader record-wrapper "glm" "glm-fast" $wrapperPath "$env:USERPROFILE\.claude-glm-fast" "ccf" 2>$null }
-}
-
-# Create the MiniMax wrapper
-function New-ClaudeMiniMaxWrapper {
-    $wrapperPath = Join-Path $UserBinDir "ccm.ps1"
-
-    # Build wrapper content using array and join to avoid nested here-strings
-    $wrapperContent = @(
-        '# CCM - Claude Code with MiniMax provider',
-        '',
-        '# Set MiniMax environment variables',
-        '$env:ANTHROPIC_BASE_URL = "https://api.minimax.io/anthropic"',
-        "`$env:ANTHROPIC_AUTH_TOKEN = `"$MiniMaxApiKey`"",
-        '$env:ANTHROPIC_DEFAULT_SONNET_MODEL = "MiniMax-M2"',
-        '$env:ANTHROPIC_DEFAULT_OPUS_MODEL = "MiniMax-M2"',
-        '$env:ANTHROPIC_DEFAULT_HAIKU_MODEL = "MiniMax-M2"',
-        '$env:API_TIMEOUT_MS = "3000000"',
-        '$env:CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC = "1"',
-        '',
-        '# Use custom config directory to avoid conflicts',
-        "`$env:CLAUDE_HOME = `"$MiniMaxConfigDir`"",
-        '',
-        '# Create config directory if it doesn''t exist',
-        'if (-not (Test-Path $env:CLAUDE_HOME)) {',
-        '    New-Item -ItemType Directory -Path $env:CLAUDE_HOME -Force | Out-Null',
-        '}',
-        '',
-        '# Create/update settings file with MiniMax configuration',
-        '$settingsJson = "{`"env`":{`"ANTHROPIC_BASE_URL`":`"https://api.minimax.io/anthropic`",`"ANTHROPIC_AUTH_TOKEN`":`"' + $MiniMaxApiKey + '`",`"API_TIMEOUT_MS`":`"3000000`",`"CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC`":1,`"ANTHROPIC_DEFAULT_SONNET_MODEL`":`"MiniMax-M2`",`"ANTHROPIC_DEFAULT_OPUS_MODEL`":`"MiniMax-M2`",`"ANTHROPIC_DEFAULT_HAIKU_MODEL`":`"MiniMax-M2`"}}"',
-        'Set-Content -Path (Join-Path $env:CLAUDE_HOME "settings.json") -Value $settingsJson',
-        '',
-        '# Launch Claude Code with custom config',
-        'Write-Host "MINIMAX: Starting Claude Code with MiniMax (M2 Model)..."',
-        'Write-Host "CONFIG: Config directory: $env:CLAUDE_HOME"',
-        'Write-Host ""',
-        '',
-        '# Check if claude exists',
-        'if (-not (Get-Command claude -ErrorAction SilentlyContinue)) {',
-        '    Write-Host "ERROR: ''claude'' command not found!"',
-        '    Write-Host "Please ensure Claude Code is installed and in your PATH"',
-        '    exit 1',
-        '}',
-        '',
-        '# Run the actual claude command',
-        '& claude $args'
-    ) -join "`n"
-
-    Set-Content -Path $wrapperPath -Value $wrapperContent
-    Write-Host "OK: Installed ccm at $wrapperPath" -ForegroundColor Green
-    if (Test-Path $ConfigLoader) { node $ConfigLoader record-wrapper "minimax" "default" $wrapperPath "$env:USERPROFILE\.claude-minimax" "ccm" 2>$null }
-}
-
-# Create the DeepSeek wrapper
-function New-ClaudeDeepSeekWrapper {
-    $wrapperPath = Join-Path $UserBinDir "ccd.ps1"
-
-    # Build wrapper content using array and join to avoid nested here-strings
-    $wrapperContent = @(
-        '# CCD - Claude Code with DeepSeek provider',
-        '',
-        '# Set DeepSeek environment variables',
-        '$env:ANTHROPIC_BASE_URL = "https://api.deepseek.com/anthropic"',
-        "`$env:ANTHROPIC_AUTH_TOKEN = `"$DeepSeekApiKey`"",
-        '$env:API_TIMEOUT_MS = "600000"',
-        '$env:CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC = "1"',
-        '',
-        '# Use custom config directory to avoid conflicts',
-        "`$env:CLAUDE_HOME = `"$DeepSeekConfigDir`"",
-        '',
-        '# Create config directory if it doesn''t exist',
-        'if (-not (Test-Path $env:CLAUDE_HOME)) {',
-        '    New-Item -ItemType Directory -Path $env:CLAUDE_HOME -Force | Out-Null',
-        '}',
-        '',
-        '# Create/update settings file with DeepSeek configuration',
-        '$settingsJson = "{`"env`":{`"ANTHROPIC_BASE_URL`":`"https://api.deepseek.com/anthropic`",`"ANTHROPIC_AUTH_TOKEN`":`"' + $DeepSeekApiKey + '`",`"API_TIMEOUT_MS`":`"600000`",`"ANTHROPIC_DEFAULT_OPUS_MODEL`":`"deepseek-chat`",`"ANTHROPIC_DEFAULT_SONNET_MODEL`":`"deepseek-chat`",`"ANTHROPIC_DEFAULT_HAIKU_MODEL`":`"deepseek-chat`",`"CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC`":1}}"',
-        'Set-Content -Path (Join-Path $env:CLAUDE_HOME "settings.json") -Value $settingsJson',
-        '',
-        '# Launch Claude Code with custom config',
-        'Write-Host "DEEPSEEK: Starting Claude Code with DeepSeek (deepseek-chat)..."',
-        'Write-Host "CONFIG: Config directory: $env:CLAUDE_HOME"',
-        'Write-Host ""',
-        '',
-        '# Check if claude exists',
-        'if (-not (Get-Command claude -ErrorAction SilentlyContinue)) {',
-        '    Write-Host "ERROR: ''claude'' command not found!"',
-        '    Write-Host "Please ensure Claude Code is installed and in your PATH"',
-        '    exit 1',
-        '}',
-        '',
-        '# Run the actual claude command',
-        '& claude $args'
-    ) -join "`n"
-
-    Set-Content -Path $wrapperPath -Value $wrapperContent
-    Write-Host "OK: Installed ccd at $wrapperPath" -ForegroundColor Green
-    if (Test-Path $ConfigLoader) { node $ConfigLoader record-wrapper "deepseek" "default" $wrapperPath "$env:USERPROFILE\.claude-deepseek" "ccd" 2>$null }
+    $wrapperPath = Join-Path $UserBinDir "$wrapperName.ps1"
+    node $ConfigLoader wrapper-powershell $Provider $Model $ApiKey | Set-Content -Path $wrapperPath
+    Write-Host "OK: Installed $wrapperName at $wrapperPath" -ForegroundColor Green
+    node $ConfigLoader record-wrapper $Provider $Model $wrapperPath $configDir $alias 2>$null
 }
 
 # Clean up wrappers for providers not selected in this installation
@@ -558,65 +273,25 @@ function Remove-UnselectedWrappers {
         [string[]]$SelectedProviders
     )
 
-    # Define all possible wrappers and their config directories
-    $glmWrappers = @("claude-glm.ps1", "claude-glm-standard.ps1", "claude-glm-fast.ps1")
-    $glmConfigs = @("$env:USERPROFILE\.claude-glm", "$env:USERPROFILE\.claude-glm-standard", "$env:USERPROFILE\.claude-glm-fast")
-    $glmAliases = @("ccg", "ccgs", "ccf")
-
-    $minimaxWrappers = @("ccm.ps1")
-    $minimaxConfigs = @("$env:USERPROFILE\.claude-minimax")
-    $minimaxAliases = @("ccm")
-
-    $deepseekWrappers = @("ccd.ps1")
-    $deepseekConfigs = @("$env:USERPROFILE\.claude-deepseek")
-    $deepseekAliases = @("ccd")
-
-    # Check which wrappers exist
+    # Discover existing wrappers/configs/aliases for providers NOT selected,
+    # driven by config (single source of truth). Passthrough providers
+    # (empty base_url, e.g. official claude) are skipped — they have no wrapper.
     $existingWrappers = @()
     $existingConfigs = @()
+    $existingAliases = @()
 
-    # Check GLM wrappers if not selected
-    if ("glm" -notin $SelectedProviders) {
-        foreach ($wrapper in $glmWrappers) {
-            $wrapperPath = Join-Path $UserBinDir $wrapper
-            if (Test-Path $wrapperPath) {
-                $existingWrappers += $wrapper
-            }
-        }
-        foreach ($config in $glmConfigs) {
-            if (Test-Path $config) {
-                $existingConfigs += $config
-            }
-        }
-    }
-
-    # Check MiniMax wrappers if not selected
-    if ("minimax" -notin $SelectedProviders) {
-        foreach ($wrapper in $minimaxWrappers) {
-            $wrapperPath = Join-Path $UserBinDir $wrapper
-            if (Test-Path $wrapperPath) {
-                $existingWrappers += $wrapper
-            }
-        }
-        foreach ($config in $minimaxConfigs) {
-            if (Test-Path $config) {
-                $existingConfigs += $config
-            }
-        }
-    }
-
-    # Check DeepSeek wrappers if not selected
-    if ("deepseek" -notin $SelectedProviders) {
-        foreach ($wrapper in $deepseekWrappers) {
-            $wrapperPath = Join-Path $UserBinDir $wrapper
-            if (Test-Path $wrapperPath) {
-                $existingWrappers += $wrapper
-            }
-        }
-        foreach ($config in $deepseekConfigs) {
-            if (Test-Path $config) {
-                $existingConfigs += $config
-            }
+    if (Test-Path $ConfigLoader) {
+        $rows = node $ConfigLoader list-models 2>$null
+        foreach ($line in $rows) {
+            $f = $line -split "`t"
+            if ($f.Count -lt 6) { continue }
+            $provider = $f[0]; $wrapper = $f[2]; $alias = $f[3]; $config = $f[4]; $baseUrl = $f[5]
+            if (-not $baseUrl) { continue }                         # skip passthrough
+            if ($SelectedProviders -contains $provider) { continue }
+            $wrapperPath = Join-Path $UserBinDir "$wrapper.ps1"
+            if (Test-Path $wrapperPath) { $existingWrappers += "$wrapper.ps1" }
+            if (Test-Path $config) { $existingConfigs += $config }
+            if ($alias) { $existingAliases += $alias }
         }
     }
 
@@ -652,58 +327,21 @@ function Remove-UnselectedWrappers {
         Write-Host ""
         Write-Host "CLEANUP: Removing unselected provider wrappers..." -ForegroundColor Cyan
 
-        # Remove GLM
-        if ("glm" -notin $SelectedProviders) {
-            foreach ($wrapper in $glmWrappers) {
-                $wrapperPath = Join-Path $UserBinDir $wrapper
-                if (Test-Path $wrapperPath) {
-                    Remove-Item -Path $wrapperPath -Force
-                    Write-Host "   OK: Removed: $wrapper" -ForegroundColor Green
-                }
+        foreach ($wrapper in $existingWrappers) {
+            $wrapperPath = Join-Path $UserBinDir $wrapper
+            if (Test-Path $wrapperPath) {
+                Remove-Item -Path $wrapperPath -Force
+                Write-Host "   OK: Removed: $wrapper" -ForegroundColor Green
             }
-            foreach ($config in $glmConfigs) {
-                if (Test-Path $config) {
-                    Remove-Item -Path $config -Recurse -Force
-                    Write-Host "   OK: Removed: $config" -ForegroundColor Green
-                }
-            }
-            Remove-AliasesFromShell $glmAliases
         }
-
-        # Remove MiniMax
-        if ("minimax" -notin $SelectedProviders) {
-            foreach ($wrapper in $minimaxWrappers) {
-                $wrapperPath = Join-Path $UserBinDir $wrapper
-                if (Test-Path $wrapperPath) {
-                    Remove-Item -Path $wrapperPath -Force
-                    Write-Host "   OK: Removed: $wrapper" -ForegroundColor Green
-                }
+        foreach ($config in $existingConfigs) {
+            if (Test-Path $config) {
+                Remove-Item -Path $config -Recurse -Force
+                Write-Host "   OK: Removed: $config" -ForegroundColor Green
             }
-            foreach ($config in $minimaxConfigs) {
-                if (Test-Path $config) {
-                    Remove-Item -Path $config -Recurse -Force
-                    Write-Host "   OK: Removed: $config" -ForegroundColor Green
-                }
-            }
-            Remove-AliasesFromShell $minimaxAliases
         }
-
-        # Remove DeepSeek
-        if ("deepseek" -notin $SelectedProviders) {
-            foreach ($wrapper in $deepseekWrappers) {
-                $wrapperPath = Join-Path $UserBinDir $wrapper
-                if (Test-Path $wrapperPath) {
-                    Remove-Item -Path $wrapperPath -Force
-                    Write-Host "   OK: Removed: $wrapper" -ForegroundColor Green
-                }
-            }
-            foreach ($config in $deepseekConfigs) {
-                if (Test-Path $config) {
-                    Remove-Item -Path $config -Recurse -Force
-                    Write-Host "   OK: Removed: $config" -ForegroundColor Green
-                }
-            }
-            Remove-AliasesFromShell $deepseekAliases
+        if ($existingAliases.Count -gt 0) {
+            Remove-AliasesFromShell $existingAliases
         }
 
         Write-Host ""
@@ -1182,24 +820,25 @@ function Install-ClaudeGlm {
 
                 # Offer advanced options before regenerating wrappers
                 if (Test-Path $ConfigLoader) {
-                    if ($script:ZaiApiKey) { Set-AdvancedOptions -ProviderName "glm" -ModelIds @("glm-51","glm-standard","glm-fast") -DisplayName "Z.AI GLM" }
+                    if ($script:ZaiApiKey) { Set-AdvancedOptions -ProviderName "glm" -ModelIds @("glm-51","glm-52","glm-standard","glm-fast") -DisplayName "Z.AI GLM" }
                     if ($script:MiniMaxApiKey) { Set-AdvancedOptions -ProviderName "minimax" -ModelIds @("default") -DisplayName "MiniMax" }
                     if ($script:DeepSeekApiKey) { Set-AdvancedOptions -ProviderName "deepseek" -ModelIds @("default") -DisplayName "DeepSeek" }
                 }
 
                 # Regenerate wrappers with new models
                 if ($script:ZaiApiKey) {
-                    New-ClaudeGlmWrapper
-                    New-ClaudeGlmStandardWrapper
-                    New-ClaudeGlmFastWrapper
-                    Write-Host "OK: GLM models updated (MAX/Standard/Fast)!"
+                    New-ProviderWrapper "glm" "glm-51" $script:ZaiApiKey
+                    New-ProviderWrapper "glm" "glm-52" $script:ZaiApiKey
+                    New-ProviderWrapper "glm" "glm-standard" $script:ZaiApiKey
+                    New-ProviderWrapper "glm" "glm-fast" $script:ZaiApiKey
+                    Write-Host "OK: GLM models updated (MAX/MAX-5.2/Standard/Fast)!"
                 }
                 if ($script:MiniMaxApiKey) {
-                    New-ClaudeMiniMaxWrapper
+                    New-ProviderWrapper "minimax" "default" $script:MiniMaxApiKey
                     Write-Host "OK: MiniMax wrapper updated!"
                 }
                 if ($script:DeepSeekApiKey) {
-                    New-ClaudeDeepSeekWrapper
+                    New-ProviderWrapper "deepseek" "default" $script:DeepSeekApiKey
                     Write-Host "OK: DeepSeek wrapper updated!"
                 }
 
@@ -1217,16 +856,17 @@ function Install-ClaudeGlm {
                     $inputKey = Read-Host "Enter your Z.AI API key"
                     if ($inputKey) {
                         $script:ZaiApiKey = $inputKey
-                        New-ClaudeGlmWrapper
-                        New-ClaudeGlmStandardWrapper
-                        New-ClaudeGlmFastWrapper
+                        New-ProviderWrapper "glm" "glm-51" $script:ZaiApiKey
+                        New-ProviderWrapper "glm" "glm-52" $script:ZaiApiKey
+                        New-ProviderWrapper "glm" "glm-standard" $script:ZaiApiKey
+                        New-ProviderWrapper "glm" "glm-fast" $script:ZaiApiKey
                         Write-Host "OK: GLM API key updated!"
                     }
                 } elseif ($providerChoice -eq "2") {
                     $inputKey = Read-Host "Enter your MiniMax API key"
                     if ($inputKey) {
                         $script:MiniMaxApiKey = $inputKey
-                        New-ClaudeMiniMaxWrapper
+                        New-ProviderWrapper "minimax" "default" $script:MiniMaxApiKey
                         Write-Host "OK: MiniMax API key updated!"
                     }
                 }
@@ -1296,7 +936,7 @@ function Install-ClaudeGlm {
     # Advanced options per selected provider (optional, interactive)
     if (Test-Path $ConfigLoader) {
         if ($providerChoice -eq "1" -or $providerChoice -eq "4" -or $providerChoice -eq "5") {
-            if ($script:ZaiApiKey) { Set-AdvancedOptions -ProviderName "glm" -ModelIds @("glm-51","glm-standard","glm-fast") -DisplayName "Z.AI GLM" }
+            if ($script:ZaiApiKey) { Set-AdvancedOptions -ProviderName "glm" -ModelIds @("glm-51","glm-52","glm-standard","glm-fast") -DisplayName "Z.AI GLM" }
         }
         if ($providerChoice -eq "2" -or $providerChoice -eq "4" -or $providerChoice -eq "5") {
             if ($script:MiniMaxApiKey) { Set-AdvancedOptions -ProviderName "minimax" -ModelIds @("default") -DisplayName "MiniMax" }
@@ -1323,17 +963,18 @@ function Install-ClaudeGlm {
 
     # Create wrappers
     if ($providerChoice -eq "1" -or $providerChoice -eq "4" -or $providerChoice -eq "5") {
-        New-ClaudeGlmWrapper
-        New-ClaudeGlmStandardWrapper
-        New-ClaudeGlmFastWrapper
+        New-ProviderWrapper "glm" "glm-51" $script:ZaiApiKey
+        New-ProviderWrapper "glm" "glm-52" $script:ZaiApiKey
+        New-ProviderWrapper "glm" "glm-standard" $script:ZaiApiKey
+        New-ProviderWrapper "glm" "glm-fast" $script:ZaiApiKey
     }
 
     if ($providerChoice -eq "2" -or $providerChoice -eq "4" -or $providerChoice -eq "5") {
-        New-ClaudeMiniMaxWrapper
+        New-ProviderWrapper "minimax" "default" $script:MiniMaxApiKey
     }
 
     if ($providerChoice -eq "3" -or $providerChoice -eq "4" -or $providerChoice -eq "5") {
-        New-ClaudeDeepSeekWrapper
+        New-ProviderWrapper "deepseek" "default" $script:DeepSeekApiKey
     }
 
     Add-PowerShellAliases
@@ -1356,6 +997,7 @@ function Install-ClaudeGlm {
 
     if ($providerChoice -eq "1" -or $providerChoice -eq "4" -or $providerChoice -eq "5") {
         Write-Host "   claude-glm          - GLM MAX (glm-5.1/glm-5-turbo/glm-4.7)"
+        Write-Host "   claude-glm-52       - GLM MAX 5.2 (glm-5.2/glm-5-turbo/glm-4.7)"
         Write-Host "   claude-glm-standard - GLM Standard (glm-5-turbo/glm-4.7/glm-4.6)"
         Write-Host "   claude-glm-fast     - GLM Fast (glm-4.7/glm-4.6/glm-4.5-air)"
     }
@@ -1374,6 +1016,7 @@ function Install-ClaudeGlm {
 
     if ($providerChoice -eq "1" -or $providerChoice -eq "4" -or $providerChoice -eq "5") {
         Write-Host "   ccg   - claude-glm (GLM MAX)"
+        Write-Host "   ccg52 - claude-glm-52 (GLM MAX 5.2)"
         Write-Host "   ccgs  - claude-glm-standard (GLM Standard)"
         Write-Host "   ccf   - claude-glm-fast (GLM Fast)"
     }
@@ -1391,6 +1034,7 @@ function Install-ClaudeGlm {
     if ($ZaiApiKey -eq "YOUR_ZAI_API_KEY_HERE" -and $providerChoice -ne "2") {
         Write-Host "WARNING: Do not forget to add your Z.AI API key to:"
         Write-Host "   $UserBinDir\claude-glm.ps1"
+        Write-Host "   $UserBinDir\claude-glm-52.ps1"
         Write-Host "   $UserBinDir\claude-glm-fast.ps1"
         Write-Host ""
     }
@@ -1449,8 +1093,26 @@ function Uninstall-ClaudeGlm {
     Write-Host "Uninstalling claude-code-providers-hub..." -ForegroundColor Yellow
     Write-Host ""
 
+    # Derive wrapper files, config dirs and aliases from config (single source of truth).
+    # Passthrough providers (empty base_url) are excluded from wrapper/config lists.
+    $wrapperFiles = @()
+    $configDirs = @()
+    $allAliases = @()
+    if (Test-Path $ConfigLoader) {
+        $rows = node $ConfigLoader list-models 2>$null
+        foreach ($line in $rows) {
+            $f = $line -split "`t"
+            if ($f.Count -lt 6) { continue }
+            $wrapper = $f[2]; $alias = $f[3]; $config = $f[4]; $baseUrl = $f[5]
+            if ($baseUrl) {
+                $wrapperFiles += "$wrapper.ps1"
+                $configDirs += $config
+            }
+            if ($alias) { $allAliases += $alias }
+        }
+    }
+
     # Remove wrapper scripts
-    $wrapperFiles = @("claude-glm.ps1", "claude-glm-standard.ps1", "claude-glm-fast.ps1", "ccm.ps1", "ccd.ps1")
     $removedCount = 0
     foreach ($w in $wrapperFiles) {
         $wpath = Join-Path $UserBinDir $w
@@ -1462,13 +1124,6 @@ function Uninstall-ClaudeGlm {
     }
 
     # Remove config directories (with confirmation)
-    $configDirs = @(
-        "$env:USERPROFILE\.claude-glm",
-        "$env:USERPROFILE\.claude-glm-standard",
-        "$env:USERPROFILE\.claude-glm-fast",
-        "$env:USERPROFILE\.claude-minimax",
-        "$env:USERPROFILE\.claude-deepseek"
-    )
     Write-Host ""
     $rmConfigs = Read-Host "Remove provider config directories (includes chat history)? (y/N)"
     if ($rmConfigs -eq 'y' -or $rmConfigs -eq 'Y') {
@@ -1482,8 +1137,7 @@ function Uninstall-ClaudeGlm {
         Write-Host "  Keeping config directories."
     }
 
-    # Remove aliases from PowerShell profile
-    $allAliases = @("cc", "ccg", "ccgs", "ccf", "ccm", "ccd")
+    # Remove aliases from PowerShell profile (allAliases derived from config above)
     Remove-AliasesFromShell -AliasesToSearch $allAliases
     Write-Host "  Removed shell aliases."
 

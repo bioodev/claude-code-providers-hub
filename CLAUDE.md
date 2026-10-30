@@ -52,9 +52,9 @@ The project supports clean uninstall via `npx ... uninstall`:
   - Tracks installed wrappers in `state.json` `installed_wrappers` array (populated after each wrapper creation)
   - Detects orphaned installations (wrappers for providers/models no longer in config)
   - Checks `config_version` in providers.yaml against shipped defaults
-  - Provides a fallback embedded YAML config (`DEFAULT_YAML` constant) if files don't exist
+  - Seeds the user config from the shipped `lib/providers.yaml` on first run (`getShippedYaml()`) — single source of truth, no embedded duplicate
   - Includes a simple YAML parser (no external dependencies)
-  - CLI commands: `list`, `get-default-model`, `wrapper-bash`, `export-bash`, `export-powershell`, `save-key`, `record-wrapper`, `remove-wrapper`, `list-wrappers`, `find-orphans`, `clear-wrappers`, `check-config-version`, `update-config`
+  - CLI commands: `list`, `get-default-model`, `get-wrapper-name`, `get-alias`, `get-config-dir`, `wrapper-bash`, `wrapper-powershell`, `export-bash`, `export-powershell`, `save-key`, `record-wrapper`, `remove-wrapper`, `list-wrappers`, `find-orphans`, `clear-wrappers`, `check-config-version`, `update-config`
 - `lib/providers.yaml` - Source YAML template (copied to `~/.claude-providers-hub/providers.yaml` on first install)
 
 ### Installation Tracking (`state.json`)
@@ -186,27 +186,25 @@ User state is maintained in `~/.claude-providers-hub/`:
 
 ### Updating the primary model for an existing provider (e.g. GLM-5.1 → GLM-5.2)
 
-1. Edit `lib/providers.yaml` — rename the model key (e.g. `glm-51` → `glm-52`) and update its `name` and `env.ANTHROPIC_DEFAULT_*_MODEL` values
-2. Edit `lib/config-loader.js` — apply the same change to the `DEFAULT_YAML` constant
-3. Bump `config_version` in both `lib/providers.yaml` and `DEFAULT_YAML` (e.g. `"1.1"` → `"1.2"`)
-4. Update the fallback hardcoded template in `install.sh` (the `cat > "$wrapper_path" << EOF` block in `create_claude_glm_wrapper`) and `install.ps1` (`New-ClaudeGlmWrapper`) to keep them in sync
-5. Update the "Update models" section in both installers to show the correct model name in user messages
-6. `bin/cli.js` `showProviders()` does NOT need updating — it reads dynamically from config
+1. Edit `lib/providers.yaml` — rename the model key (e.g. `glm-51` → `glm-52`) and update its `name`, `env.ANTHROPIC_DEFAULT_*_MODEL`, `wrapper_name`, `alias`, and `config_dir` values
+2. Bump `config_version` in `lib/providers.yaml` (e.g. `"1.4"` → `"1.5"`)
+3. Update the "Update models" section in both installers to show the correct model name in user messages, and the install/uninstall/alias arrays if the wrapper name or alias changed
+4. `bin/cli.js` `showProviders()` does NOT need updating — it reads dynamically from config
+5. The installers need NO wrapper-template changes — both `install.sh` (`create_wrapper_for`) and `install.ps1` (`New-ProviderWrapper`) generate wrappers dynamically from `lib/providers.yaml` via `config-loader.js`
+
+Note: there is no longer an embedded `DEFAULT_YAML` constant. The shipped `lib/providers.yaml` is the single source of truth; the user config is seeded from it on first run.
 
 ### Adding a new AI provider
 
-1. Add provider definition to `lib/providers.yaml` and the `DEFAULT_YAML` in `lib/config-loader.js`
-2. Follow the existing structure: `name`, `description`, `base_url`, `config_dir`, `models`
-3. Update both `install.sh` and `install.ps1` to include the new provider in interactive menus
-4. Add a `create_claude_<provider>_wrapper` function to `install.sh` using the dynamic lookup pattern:
-   ```bash
-   model_id=$(node "$CONFIG_LOADER" get-default-model "<provider>" 2>/dev/null)
-   node "$CONFIG_LOADER" wrapper-bash "<provider>" "$model_id" "$API_KEY" > "$wrapper_path"
-   ```
-5. Add the equivalent `New-Claude<Provider>Wrapper` function to `install.ps1`
-6. Add a `record-wrapper` call after wrapper creation in both installers
-7. Add the new provider to `cleanup_unselected_wrappers` (install.sh) and `Remove-UnselectedWrappers` (install.ps1)
-8. Bump `config_version` in both YAML sources
+1. Add the provider definition to `lib/providers.yaml` (single source of truth)
+2. Follow the existing structure: `name`, `description`, `base_url`, `config_dir`, `models` (each model needs `name`, `wrapper_name`, `alias`, `config_dir`, `env`)
+3. Update both `install.sh` and `install.ps1` to include the new provider in interactive menus (provider selection, advanced options, display/summary messages)
+4. Create wrappers with the generic functions — no per-model template needed:
+   - `install.sh`: `create_wrapper_for "<provider>" "<model_id>" "$<PROVIDER>_API_KEY"`
+   - `install.ps1`: `New-ProviderWrapper "<provider>" "<model_id>" $script:<Provider>ApiKey`
+   Each call already does `record-wrapper` internally.
+5. **No need to touch aliases/cleanup/uninstall lists** — `create_shell_aliases`/`Add-PowerShellAliases`, `cleanup_unselected_wrappers`/`Remove-UnselectedWrappers`, and the uninstall arrays all derive automatically from `lib/providers.yaml` via `config-loader.js list-models`. Only the interactive menus (provider selection, advanced options, summary messages) may need the provider name added.
+6. Bump `config_version` in `lib/providers.yaml`
 
 ## Error Reporting
 
