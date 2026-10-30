@@ -10,6 +10,7 @@ Each provider runs in a fully isolated environment: separate config directory, s
 
 | Command | Provider | Models (Opus/Sonnet/Haiku) | Best for |
 |---------|----------|---------------------------|----------|
+| `ccg52` | Z.AI | GLM MAX 5.2: glm-5.2 / glm-5-turbo / glm-4.7 | Newest flagship, maximum power (3× quota at peak) |
 | `ccg` | Z.AI | GLM MAX: glm-5.1 / glm-5-turbo / glm-4.7 | Maximum power, complex tasks (3× quota at peak) |
 | `ccgs` | Z.AI | GLM Standard: glm-5-turbo / glm-4.7 / glm-4.6 | Balanced power/cost (mixed) |
 | `ccf` | Z.AI | GLM Fast: glm-4.7 / glm-4.6 / glm-4.5-air | Maximum savings, 4.x only (always 1× quota) |
@@ -79,6 +80,7 @@ Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
 ## Usage
 
 ```bash
+ccg52                      # Open Claude Code with GLM MAX 5.2 (glm-5.2/glm-5-turbo/glm-4.7)
 ccg                        # Open Claude Code with GLM MAX (glm-5.1/glm-5-turbo/glm-4.7)
 ccgs                       # Open Claude Code with GLM Standard (glm-5-turbo/glm-4.7/glm-4.6)
 ccf                        # Open Claude Code with GLM Fast (glm-4.7/glm-4.6/glm-4.5-air)
@@ -111,6 +113,7 @@ Config directories are kept separate so chat histories and settings never mix:
 
 | Command | Config Directory |
 |---------|-----------------|
+| `ccg52` | `~/.claude-glm-52/` |
 | `ccg` | `~/.claude-glm/` |
 | `ccgs` | `~/.claude-glm-standard/` |
 | `ccf` | `~/.claude-glm-fast/` |
@@ -253,7 +256,7 @@ See [CLAUDE.md](CLAUDE.md) for the full provider/model schema.
 
 ## Troubleshooting
 
-**`ccg: command not found` (or `ccf`, `ccm`, `ccd`)**
+**`ccg: command not found` (or `ccg52`, `ccf`, `ccm`, `ccd`)**
 The shell config wasn't reloaded after installation. Run `source ~/.zshrc` (macOS/Linux) or `. $PROFILE` (Windows), or open a new terminal.
 
 **`claude: command not found`**

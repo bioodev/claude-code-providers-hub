@@ -10,6 +10,7 @@ Cada proveedor corre en un entorno completamente aislado: directorio de configur
 
 | Comando | Proveedor | Modelos (Opus/Sonnet/Haiku) | Ideal para |
 |---------|-----------|----------------------------|------------|
+| `ccg52` | Z.AI | GLM MAX 5.2: glm-5.2 / glm-5-turbo / glm-4.7 | Buque insignia, máxima potencia (3× cuota en hora pico) |
 | `ccg` | Z.AI | GLM MAX: glm-5.1 / glm-5-turbo / glm-4.7 | Máxima potencia, tareas complejas (3× cuota en hora pico) |
 | `ccgs` | Z.AI | GLM Standard: glm-5-turbo / glm-4.7 / glm-4.6 | Balance potencia/costo (mixto) |
 | `ccf` | Z.AI | GLM Fast: glm-4.7 / glm-4.6 / glm-4.5-air | Máximo ahorro, solo 4.x (siempre 1× cuota) |
@@ -79,6 +80,7 @@ Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
 ## Uso
 
 ```bash
+ccg52                      # Claude Code con GLM MAX 5.2 (glm-5.2/glm-5-turbo/glm-4.7)
 ccg                        # Claude Code con GLM MAX (glm-5.1/glm-5-turbo/glm-4.7)
 ccgs                       # Claude Code con GLM Standard (glm-5-turbo/glm-4.7/glm-4.6)
 ccf                        # Claude Code con GLM Fast (glm-4.7/glm-4.6/glm-4.5-air)
@@ -111,6 +113,7 @@ Los directorios de configuración se mantienen separados para que los historiale
 
 | Comando | Directorio de configuración |
 |---------|-----------------------------|
+| `ccg52` | `~/.claude-glm-52/` |
 | `ccg` | `~/.claude-glm/` |
 | `ccgs` | `~/.claude-glm-standard/` |
 | `ccf` | `~/.claude-glm-fast/` |
@@ -252,7 +255,7 @@ Al reinstalar, el instalador detecta automáticamente:
 
 ## Solución de problemas
 
-**`ccg: command not found` (o `ccf`, `ccm`, `ccd`)**
+**`ccg: command not found` (o `ccg52`, `ccf`, `ccm`, `ccd`)**
 La configuración del shell no se recargó después de la instalación. Ejecuta `source ~/.zshrc` (macOS/Linux) o `. $PROFILE` (Windows), o abre una nueva terminal.
 
 **`claude: command not found`**
