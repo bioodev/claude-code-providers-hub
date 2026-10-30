@@ -1,7 +1,7 @@
 # Provider configurations for claude-code-providers-hub
 # This file defines available providers and their models
 
-config_version: "1.3"
+config_version: "1.4"
 
 # Provider definitions
 providers:
@@ -35,6 +35,20 @@ providers:
         description: "GLM MAX - glm-5.1/glm-5-turbo/glm-4.7 (3x quota)"
         env:
           ANTHROPIC_DEFAULT_OPUS_MODEL: "glm-5.1"
+          ANTHROPIC_DEFAULT_SONNET_MODEL: "glm-5-turbo"
+          ANTHROPIC_DEFAULT_HAIKU_MODEL: "glm-4.7"
+          API_TIMEOUT_MS: "600000"
+          CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "1"
+
+      # GLM MAX 5.2 - Newest flagship (glm-5.2/glm-5-turbo/glm-4.7)
+      glm-52:
+        name: "GLM MAX 5.2"
+        wrapper_name: "claude-glm-52"
+        alias: "ccg52"
+        description: "GLM MAX 5.2 - glm-5.2/glm-5-turbo/glm-4.7"
+        config_dir: "~/.claude-glm-52"
+        env:
+          ANTHROPIC_DEFAULT_OPUS_MODEL: "glm-5.2"
           ANTHROPIC_DEFAULT_SONNET_MODEL: "glm-5-turbo"
           ANTHROPIC_DEFAULT_HAIKU_MODEL: "glm-4.7"
           API_TIMEOUT_MS: "600000"
